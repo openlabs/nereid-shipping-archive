@@ -1,0 +1,22 @@
+Metadata-Version: 1.0
+Name: trytond-nereid-shipping
+Version: 1.8.0
+Summary: API to facilitate multiple shipping methods to integrate with Nereid
+Home-page: http://www.openlabs.co.in
+Author: Openlabs Technologies & Consulting (P) LTD
+Author-email: info@openlabs.co.in
+License: GPL-3
+Download-URL: http://downloads.tryton.org/1.8/
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Plugins
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Financial and Insurance Industry
+Classifier: Intended Audience :: Legal Industry
+Classifier: Intended Audience :: Manufacturing
+Classifier: License :: OSI Approved :: GNU General Public License (GPL)
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Topic :: Office/Business

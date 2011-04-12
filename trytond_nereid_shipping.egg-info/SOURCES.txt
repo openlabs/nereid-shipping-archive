@@ -1,0 +1,14 @@
+setup.py
+./__init__.py
+./__tryton__.py
+./methods.py
+./shipping.py
+./tests/__init__.py
+./tests/test_shipping.py
+trytond_nereid_shipping.egg-info/PKG-INFO
+trytond_nereid_shipping.egg-info/SOURCES.txt
+trytond_nereid_shipping.egg-info/dependency_links.txt
+trytond_nereid_shipping.egg-info/entry_points.txt
+trytond_nereid_shipping.egg-info/not-zip-safe
+trytond_nereid_shipping.egg-info/requires.txt
+trytond_nereid_shipping.egg-info/top_level.txt

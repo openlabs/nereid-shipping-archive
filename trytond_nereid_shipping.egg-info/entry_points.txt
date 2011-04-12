@@ -1,0 +1,4 @@
+
+    [trytond.modules]
+    electronic_mail = trytond.modules.nereid_shipping
+    
