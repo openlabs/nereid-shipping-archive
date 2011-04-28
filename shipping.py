@@ -102,7 +102,7 @@ class NereidShipping(ModelSQL, ModelView):
             }
         """
         model_obj = self.pool.get('ir.model')
-        shipping_method_models = model_obj.search_(
+        shipping_method_models = model_obj.search(
             [('model', 'ilike', 'nereid.shipping.')])
 
         # Initialise a Queue and add it to kwargs, this is designed
@@ -112,7 +112,7 @@ class NereidShipping(ModelSQL, ModelView):
         queue = Queue()
         kwargs['queue'] = queue
 
-        for model in model_obj.browse_(shipping_method_models):
+        for model in model_obj.browse(shipping_method_models):
             method_obj = self.pool.get(model.model)
             getattr(method_obj, 'get_rate')(**kwargs)
 
