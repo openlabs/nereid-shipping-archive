@@ -122,6 +122,14 @@ class TestShipping(unittest.TestCase):
             self.assertEqual(len(sale.lines), 1)
             self.assertEqual(sale.lines[0].product.id, self.product)
 
+    def test_0020_check_methods(self):
+        """Test checkout methods are returned for right countries
+
+        1. Create shipping methods for each site against countries
+        2. Assert that the right methods are returned for right countries
+        """
+        pass
+
 
 def suite():
     "Checkout test suite"

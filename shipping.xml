@@ -123,7 +123,7 @@
           <field name="view" ref="shipping_flat_rate_view_form"/>
           <field name="act_window" ref="act_shipping_flat_rate_form"/>
       </record>
-      <menuitem parent="menu_nereid_shipping_default" action="act_shipping_flat_rate_form"
+      <menuitem parent="menu_nereid_shipping" action="act_shipping_flat_rate_form"
           id="menu_shipping_method_flat_form" />
 
       <!-- nereid.shipping.method.free -->
@@ -180,7 +180,7 @@
           <field name="view" ref="act_shipping_free_view_form"/>
           <field name="act_window" ref="act_shipping_free_form"/>
       </record>
-      <menuitem parent="menu_nereid_shipping_default" action="act_shipping_free_form"
+      <menuitem parent="menu_nereid_shipping" action="act_shipping_free_form"
           id="menu_shipping_method_free_form" />
 
       <!-- nereid.shipping.method.table -->
@@ -240,7 +240,7 @@
           <field name="view" ref="shipping_table_view_form"/>
           <field name="act_window" ref="act_shipping_table_form"/>
       </record>  
-      <menuitem parent="menu_nereid_shipping_default" action="act_shipping_table_form"
+      <menuitem parent="menu_nereid_shipping" action="act_shipping_table_form"
           id="menu_shipping_method_table_form" />
 
       <!-- shipping.method.table.line -->

@@ -16,7 +16,7 @@ class FlatRateShipping(ModelSQL, ModelView):
     _description = __doc__
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
-    price = fields.Decimal('Price', required=True)
+    price = fields.Numeric('Price', required=True)
 
     def default_model(self):
         "Sets self name"
@@ -53,7 +53,7 @@ class FreeShipping(ModelSQL, ModelView):
     _description = __doc__
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
-    minimum_order_value = fields.Decimal('Minimum Order Value')
+    minimum_order_value = fields.Numeric('Minimum Order Value')
 
     def get_rate(self, queue, country):
         "Free shipping if order value is above a certain limit"
