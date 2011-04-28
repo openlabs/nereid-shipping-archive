@@ -22,7 +22,7 @@ class NereidShipping(ModelSQL, ModelView):
     available_countries = fields.Many2Many('nereid.shipping-country.country',
             'shipping', 'country', 'Countries Available')
     website = fields.Many2One('nereid.website', 'Website')
-    
+
     def default_is_allowed_for_guest(self):
         "Returns True"
         return True
@@ -65,7 +65,7 @@ class NereidShipping(ModelSQL, ModelView):
             # exploitation by ID
             address_id = int(request.args.get('address'))
             if address_id not in [a.id for a in 
-                    request.nereid_user.party_id.address]:
+                    request.nereid_user.party.addresses]:
                 abort(403)
             address = address_obj.browse(address_id)
             result = self._get_available_methods(
@@ -73,7 +73,7 @@ class NereidShipping(ModelSQL, ModelView):
                 streetbis = address.streetbis,
                 city = address.city,
                 zip = address.zip,
-                subdivision = address.subdivision_id.id,
+                subdivision = address.subdivision.id,
                 country = address.country.id,
                 )
         else:
@@ -120,12 +120,9 @@ class NereidShipping(ModelSQL, ModelView):
             method_obj = self.pool.get(model.model)
             getattr(method_obj, 'get_rate')(**kwargs)
 
-        # Store the shipping quote in session so that it can be validated
-        # without retrying to create quotes.
-        session['shipping_quote'] = queue.queue
         return [record for record in queue.queue]
 
-    def add_shipping_line(self, cart, form):
+    def add_shipping_line(self, sale, shipment_method_id):
         '''
         Extract the shipping method and rate from the form
         Then create a new line or overwrite and existing line in the sale order 
@@ -133,17 +130,26 @@ class NereidShipping(ModelSQL, ModelView):
         '''
         sale_line_obj = self.pool.get('sale.sale.line')
 
-        shipment_method_id = form.shimpent_method.data
-        for method in session.get('shipping_quote', []):
+        address = sale.shipping_address
+        available_methods = self._get_available_methods(
+            street = address.street,
+            streetbis = address.streetbis,
+            city = address.city,
+            zip = address.zip,
+            subdivision = address.subdivision.id,
+            country = address.country.id,
+            )
+
+        for method in available_methods:
             if method['id'] == shipment_method_id:
                 values = {
                     'description': 'Shipping (%s)' % method['name'],
-                    'sale': cart.sale.id,
+                    'sale': sale.id,
                     'unit_price': method['amount'],
                     'is_shipping_line': True,
                     }
                 existing_shipping_lines = sale_line_obj.search([
-                    ('sale', '=', cart.sale.id),
+                    ('sale', '=', sale.id),
                     ('is_shipping_line', '=', True)
                     ])
                 if existing_shipping_lines:
@@ -165,6 +171,23 @@ class NereidShipping(ModelSQL, ModelView):
         return []
 
 NereidShipping()
+
+
+class DefaultCheckout(ModelSQL):
+    "Default Checkout Functionality process payment addition"
+
+    _name = 'nereid.checkout.default'
+
+    def _process_shipment(self, sale, form):
+        """Process the payment
+
+        :param sale: Browse Record of Sale Order
+        :param form: Instance of validated form
+        """
+        shipping_obj = self.pool.get("nereid.shipping")
+        return shipping_obj.add_shipping_line(sale, form.shipment_method.data)
+
+DefaultCheckout()
 
 
 class AvailableCountries(ModelSQL, ModelView):

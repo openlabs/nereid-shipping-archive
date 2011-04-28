@@ -402,13 +402,15 @@ class TestShipping(unittest.TestCase):
             expected_result = [
                 [flat_rate.id, flat_rate.name, float(flat_rate.price)]
                 ]
+            expected_result2 = expected_result + [
+                [free_rate.id, free_rate.name, 0.00]]
 
             txn.cursor.commit()
 
         app = self.get_app()
         with app.test_client() as c:
             c.post('/login', 
-                data={'username': 'email@example.com', 'password': 'password'})
+                data={'email': 'email@example.com', 'password': 'password'})
             c.post('/cart/add', data={'product': self.product, 'quantity': 3})
             url = '/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
@@ -435,13 +437,14 @@ class TestShipping(unittest.TestCase):
 
         app = self.get_app()
         with app.test_client() as c:
+            c.post('/login', 
+                data={'email': 'email@example.com', 'password': 'password'})
             url = '/_available_shipping_methods?' + urlencode({
                 'address': address.id,
                 })
             result = c.get(url)
-            self.assertEqual(json.loads(result.data), {u'result': expected_result})
-
-            expected_result.append([free_rate.id, free_rate.name, 0.00])
+            self.assertEqual(
+                json.loads(result.data), {u'result': expected_result})
 
             c.post('/cart/add', data={'product': self.product, 'quantity': 3})
 
@@ -449,7 +452,8 @@ class TestShipping(unittest.TestCase):
                 'address': address.id,
                 })
             result = c.get(url)
-            self.assertEqual(json.loads(result.data), {u'result': expected_result})
+            self.assertEqual(
+                json.loads(result.data), {u'result': expected_result2})
 
             # Table rate will fail here as the country being submitted is not in 
             # table lines.
@@ -460,7 +464,8 @@ class TestShipping(unittest.TestCase):
                 'address': address.id,
                 })
             result = c.get(url)
-            self.assertEqual(json.loads(result.data), {u'result': expected_result})
+            self.assertEqual(
+                json.loads(result.data), {u'result': expected_result2})
 
         with Transaction().start(testing_proxy.db_name, 
                 testing_proxy.user, testing_proxy.context) as txn:
