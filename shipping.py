@@ -52,7 +52,7 @@ class NereidShipping(ModelSQL, ModelView):
         method of each decide if they want to expand into CODE or NAME
 
         """
-        address_obj = self.pool.get('party.party.address')
+        address_obj = self.pool.get('party.address')
 
         if 'address' in request.args:
             if request.is_guest_user:
