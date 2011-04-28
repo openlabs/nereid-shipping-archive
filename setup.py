@@ -54,7 +54,7 @@ setup(name='trytond_nereid_shipping',
     zip_safe=False,
     entry_points="""
     [trytond.modules]
-    electronic_mail = trytond.modules.nereid_shipping
+    nereid_shipping = trytond.modules.nereid_shipping
     """,
     test_suite='tests',
     test_loader='trytond.test_loader:Loader',

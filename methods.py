@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from nereid.globals import request, session
 from trytond.model import ModelSQL, ModelView, fields
+from trytond.pyson import Eval
 
 
 class FlatRateShipping(ModelSQL, ModelView):
@@ -39,7 +40,7 @@ class FlatRateShipping(ModelSQL, ModelView):
         queue.put({
             'id': rate.id, 
             'name': rate.name, 
-            'amount': rate.price
+            'amount': float(rate.price)
             })
         return
 
@@ -55,7 +56,7 @@ class FreeShipping(ModelSQL, ModelView):
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
     minimum_order_value = fields.Numeric('Minimum Order Value')
 
-    def get_rate(self, queue, country):
+    def get_rate(self, queue, country, **kwargs):
         "Free shipping if order value is above a certain limit"
         cart_obj = self.pool.get('nereid.cart')
         domain = [
@@ -71,11 +72,11 @@ class FreeShipping(ModelSQL, ModelView):
 
         rate = self.browse(rate_id[0])
         cart = cart_obj.open_cart()
-        if cart.sale.amount_total >= rate.minimum_order_value:
+        if cart.sale.total_amount >= rate.minimum_order_value:
             queue.put({
                 'id': rate.id,
                 'name': rate.name,
-                'amount': Decimal('0'),
+                'amount': float(Decimal('0')),
                 })
         return
 
@@ -101,7 +102,7 @@ class ShippingTable(ModelSQL, ModelView):
         "Sets Self Name"
         return self._name
 
-    def get_rate(self, queue, zip, subdivision, country):
+    def get_rate(self, queue, zip, subdivision, country, **kwargs):
         """Calculate the price of shipment based on factor, shipment address
             and factor defined in table lines.
 
@@ -139,7 +140,7 @@ class ShippingTable(ModelSQL, ModelView):
             return
 
         cart = cart_obj.open_cart()
-        compared_value = cart.sale.amount_total
+        compared_value = cart.sale.total_amount
 
         # compared value under an IF
 
@@ -177,7 +178,7 @@ class ShippingTable(ModelSQL, ModelView):
                 return {
                     'id': line.table.id,
                     'name': line.table.name, 
-                    'amount': line.price
+                    'amount': float(line.price)
                         }
 
 ShippingTable()
@@ -190,8 +191,7 @@ class ShippingTableLine(ModelSQL, ModelView):
 
     country = fields.Many2One('country.country', 'Country')
     subdivision = fields.Many2One('country.subdivision', 'Subdivision', 
-        domain=[('country', '=', 'country')]
-    )
+        domain=[('country', '=', Eval('country'))])
     zip = fields.Char('ZIP')
     factor = fields.Float('Factor', required=True, 
             help="Value (inclusive) and above")

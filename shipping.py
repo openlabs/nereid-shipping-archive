@@ -22,6 +22,10 @@ class NereidShipping(ModelSQL, ModelView):
     available_countries = fields.Many2Many('nereid.shipping-country.country',
             'shipping', 'country', 'Countries Available')
     website = fields.Many2One('nereid.website', 'Website')
+    
+    def default_is_allowed_for_guest(self):
+        "Returns True"
+        return True
 
     def default_active(self):
         "Returns True"
@@ -42,7 +46,7 @@ class NereidShipping(ModelSQL, ModelView):
             extracts to_address from it
 
         2. Individually specify the following:
-            street, street2, city, postal_code, subdivision, country
+            street, streetbis, city, postal_code, subdivision, country
 
         The subdivision and country are not expanded into the ISO codes
         or names because doing that may not be required by many methods
@@ -63,7 +67,7 @@ class NereidShipping(ModelSQL, ModelView):
             if address_id not in [a.id for a in 
                     request.nereid_user.party_id.address]:
                 abort(403)
-            address = address_obj.browse_(address_id)
+            address = address_obj.browse(address_id)
             result = self._get_available_methods(
                 street = address.street,
                 streetbis = address.streetbis,
@@ -103,7 +107,7 @@ class NereidShipping(ModelSQL, ModelView):
         """
         model_obj = self.pool.get('ir.model')
         shipping_method_models = model_obj.search(
-            [('model', 'ilike', 'nereid.shipping.')])
+            [('model', 'ilike', 'nereid.shipping.%')])
 
         # Initialise a Queue and add it to kwargs, this is designed
         # this way so that in future this could be run simultaneously
@@ -154,7 +158,7 @@ class NereidShipping(ModelSQL, ModelView):
             abort(403)
         return True
 
-    def get_rate(self):
+    def get_rate(self, **kwargs):
         """Default method, this should be overwritten by each
         method. 
         """
