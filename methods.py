@@ -3,8 +3,6 @@
 """
 Nereid Shipping
 """
-from decimal import Decimal
-
 from nereid.globals import request, session
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pyson import Eval
@@ -76,7 +74,7 @@ class FreeShipping(ModelSQL, ModelView):
             queue.put({
                 'id': rate.id,
                 'name': rate.name,
-                'amount': float(Decimal('0')),
+                'amount': 0.00,
                 })
         return
 
@@ -147,7 +145,7 @@ class ShippingTable(ModelSQL, ModelView):
         domain = [
             ('table', '=', table_ids[0]),       # 0
             ('country', '=', country),          # 1
-            ('subdivision', '=', subdivision),              # 2
+            ('subdivision', '=', subdivision),  # 2
             ('zip', '=', zip),                  # 3
             ]
         # Try finding lines with max => min match
@@ -156,7 +154,8 @@ class ShippingTable(ModelSQL, ModelView):
             search_domain = domain[:index] + [
                 (l[0], '=', False) for l in domain[index:] if index
                 ]
-            line_ids = line_obj.search(search_domain, order = "factor DESC")
+            line_ids = line_obj.search(
+                search_domain, order=[('factor','DESC')])
             if line_ids:
                 result = self.find_slab(line_ids, compared_value)
                 if result: 
@@ -178,7 +177,7 @@ class ShippingTable(ModelSQL, ModelView):
                 return {
                     'id': line.table.id,
                     'name': line.table.name, 
-                    'amount': float(line.price)
+                    'amount': float(line.price),
                         }
 
 ShippingTable()
@@ -195,7 +194,7 @@ class ShippingTableLine(ModelSQL, ModelView):
     zip = fields.Char('ZIP')
     factor = fields.Float('Factor', required=True, 
             help="Value (inclusive) and above")
-    price = fields.Float('Price', required=True)
+    price = fields.Numeric('Price', required=True)
     table = fields.Many2One('nereid.shipping.method.table', 'Shipping Table')
 
 
