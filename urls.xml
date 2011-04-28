@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tryton>
+    <data noupdate="1">
+
+        <record id="shipping_methods" model="nereid.url_rule">
+            <field name="rule">/_available_shipping_methods</field>
+            <field name="endpoint">nereid.shipping.get_available_methods</field>
+            <field name="sequence" eval="100" />
+            <field name="url_map" ref="nereid.default_url_map" />
+        </record>
+
+    </data>
+</tryton>

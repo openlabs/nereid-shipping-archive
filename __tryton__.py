@@ -14,5 +14,6 @@
 	],
     'xml': [
         'shipping.xml',
+        'urls.xml',
     ]
 }
