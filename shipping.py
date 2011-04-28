@@ -7,7 +7,7 @@ from Queue import Queue
 
 from nereid import abort
 from nereid.helpers import jsonify
-from nereid.globals import request, session
+from nereid.globals import request, session, current_app
 from trytond.model import ModelView, ModelSQL, fields
 
 
@@ -15,7 +15,7 @@ class NereidShipping(ModelSQL, ModelView):
     "Nereid Shipping"
     _name = "nereid.shipping"
     _description = __doc__
-    
+
     name = fields.Char('Name', required=True)
     active = fields.Boolean('Active')
     is_allowed_for_guest = fields.Boolean('Is allowed for Guest ?')
@@ -55,7 +55,7 @@ class NereidShipping(ModelSQL, ModelView):
         address_obj = self.pool.get('party.party.address')
 
         if 'address' in request.args:
-            if 'user' not in session:
+            if request.is_guest_user:
                 abort(403)
             # If not validated as user's address this could lead to 
             # exploitation by ID
@@ -66,7 +66,7 @@ class NereidShipping(ModelSQL, ModelView):
             address = address_obj.browse_(address_id)
             result = self._get_available_methods(
                 street = address.street,
-                street2 = address.street2,
+                streetbis = address.streetbis,
                 city = address.city,
                 zip = address.zip,
                 subdivision = address.subdivision_id.id,
@@ -76,7 +76,7 @@ class NereidShipping(ModelSQL, ModelView):
             # Each specified manually
             result = self._get_available_methods(
                 street = request.args.get('street'),
-                street2 = request.args.get('street2'),
+                streetbis = request.args.get('streetbis'),
                 city = request.args.get('city'),
                 zip = request.args.get('zip'),
                 subdivision = int(request.args.get('subdivision')),
@@ -86,17 +86,32 @@ class NereidShipping(ModelSQL, ModelView):
             result = [(g['id'], g['name'], g['amount']) for g in result]
             )
 
-    def _get_available_methods(self,):
-        """Return the list of tuple of available shipment methods"""
+    def _get_available_methods(self, **kwargs):
+        """Return the list of tuple of available shipment methods
+
+        The method calls the get_rate method of each available shipping 
+        method with the keyword arguments in kwargs and queue. The method can
+        use whatever data it wants to use from the kwargs and add a shipping
+        option to the queue (using queue.put). The API expects the option
+        to be a dictionary of the following format::
+
+            {
+                'id': <id of shipping method>,
+                'name': <name to display on website>,
+                'amount': <estimated amount>
+            }
+        """
         model_obj = self.pool.get('ir.model')
         shipping_method_models = model_obj.search_(
             [('model', 'ilike', 'nereid.shipping.')])
+
         # Initialise a Queue and add it to kwargs, this is designed
         # this way so that in future this could be run simultaneously
         # in separate transactions in a multithreaded simultaneous
         # fashion. This may greatly speed up processes
         queue = Queue()
         kwargs['queue'] = queue
+
         for model in model_obj.browse_(shipping_method_models):
             method_obj = self.pool.get(model.model)
             getattr(method_obj, 'get_rate')(**kwargs)
@@ -109,67 +124,39 @@ class NereidShipping(ModelSQL, ModelView):
     def add_shipping_line(self, cart, form):
         '''
         Extract the shipping method and rate from the form
-        Then create a new line in the sale order with the 
-        name of the method and price
+        Then create a new line or overwrite and existing line in the sale order 
+        with the name of the method and price and is_shipping_line flag set
         '''
-        sale_line_obj = self.pool.get('sale.order.line')
-        uom_obj = self.pool.get('product.uom')
+        sale_line_obj = self.pool.get('sale.sale.line')
 
-        shipment_method = self.browse_(form.shimpent_method.id)
-        sale_line_obj.create_({
-            'name': shipment_method.name,
-            'order_id': cart.sale.id,
-            'is_shipping_line': True,
-            'price_unit': '', # TODO
-            'product_uom': uom_obj.search_([('name', '=', 'PCE')]),
-            })
+        shipment_method_id = form.shimpent_method.data
+        for method in session.get('shipping_quote', []):
+            if method['id'] == shipment_method_id:
+                values = {
+                    'description': 'Shipping (%s)' % method['name'],
+                    'sale': cart.sale.id,
+                    'unit_price': method['amount'],
+                    'is_shipping_line': True,
+                    }
+                existing_shipping_lines = sale_line_obj.search([
+                    ('sale', '=', cart.sale.id),
+                    ('is_shipping_line', '=', True)
+                    ])
+                if existing_shipping_lines:
+                    sale_line_obj.write(existing_shipping_lines, values)
+                else:
+                    sale_line_obj.create(values)
+                break
+        else:
+            current_app.logger.debug('Selected shipment method (%s) not in ' +
+                'shipping_quote (%s) in session' % \
+                (shipment_method_id, session['shipping_quote']))
+            abort(403)
         return True
-
-    def get_shipping_options(self):
-        '''
-        Return shipping options. This is an XHR only method
-        and the parameter in the GET request must be structured
-        as follows:
-
-            address : If address exists in the dictionary then
-            the to_address will be constructed from the 
-            party.party.address object with id indicated by 
-            address
-
-            If address doesnt exist, then the following fields
-            are expected
-
-            street, street2, city, postal_code, subdivision, country
-
-            where subdivision and country are IDs which are then 
-            transformed into ISO codes to pass to the 
-            get_amount_for_method for each available option
-        '''
-        pass
-
-    def get_amount_for_method(self, method, from_address, to_address):
-        '''
-        Return the amount for shipping for the method
-
-        This method in turn calls each shipping method's estimate method
-        which should call each shipping service and their corresponding
-        services and return options in the following format:
-
-        [{<service name>: <rate>}]
-
-        :param method: ID of the shipping method
-        :param from_address: Dict of address
-            street, street2, city, postal_code, subdivision, country
-        :param to_address: ID of the to country
-            street, street2, city, postal_code, subdivision, country
-        '''
-        method = self.browse_(method)
-        shipping_obj = self.pool.get(method.model)
-        return shipping_obj.estimate(method, from_address, to_address)
 
     def get_rate(self):
         """Default method, this should be overwritten by each
-        method
+        method. 
         """
         return []
 
@@ -189,14 +176,15 @@ class AvailableCountries(ModelSQL, ModelView):
 AvailableCountries()
 
 
-class SaleOrderLine(ModelSQL, ModelView):
-    "Sale-OrderLine"
+class SaleLine(ModelSQL, ModelView):
+    "Add Is Shipping Line to Sale Line"
+    _name = 'sale.line'
 
-    _name = 'sale.order.line'
+    #: A flag field which indicates if the field is representive
+    #: of a shipping line
+    is_shipping_line = fields.Boolean('Is Shipping Line?', readonly = True)
 
-    is_shipping_line = fields.Boolean('Is Shipping Line?')
-
-SaleOrderLine()
+SaleLine()
 
 
 class Website(ModelSQL, ModelView):
@@ -208,6 +196,7 @@ class Website(ModelSQL, ModelView):
             'website', 'shipping', 'Allowed Shipping Methods')
 
 Website()
+
 
 class WebsiteShipping(ModelSQL, ModelView):
     "Website Shipping Rel"

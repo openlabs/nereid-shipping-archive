@@ -3,6 +3,8 @@
 """
 Nereid Shipping
 """
+from decimal import Decimal
+
 from nereid.globals import request, session
 from trytond.model import ModelSQL, ModelView, fields
 
@@ -14,24 +16,25 @@ class FlatRateShipping(ModelSQL, ModelView):
     _description = __doc__
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
-    price = fields.Float('Price', required=True)
+    price = fields.Decimal('Price', required=True)
 
     def default_model(self):
         "Sets self name"
         return self._name
 
-    def get_rate(self, queue, country):
+    def get_rate(self, queue, country, **kwargs):
         "Get the rate "
         domain = [
             ('available_countries', '=', country),
             ('website', '=', request.nereid_website.id),
             ]
-        if 'user' not in session:
+        if request.is_guest_user:
             domain.append(('is_allowed_for_guest', '=', True))
 
         rate_id = self.search(domain)
         if not rate_id:
-            return
+            return None
+
         rate = self.browse(rate_id[0])
         queue.put({
             'id': rate.id, 
@@ -50,8 +53,7 @@ class FreeShipping(ModelSQL, ModelView):
     _description = __doc__
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
-    minimum_order_value = fields.Float('Minimum Order Value')
-
+    minimum_order_value = fields.Decimal('Minimum Order Value')
 
     def get_rate(self, queue, country):
         "Free shipping if order value is above a certain limit"
@@ -66,13 +68,14 @@ class FreeShipping(ModelSQL, ModelView):
         rate_id = self.search(domain)
         if not rate_id:
             return
+
         rate = self.browse(rate_id[0])
         cart = cart_obj.open_cart()
         if cart.sale.amount_total >= rate.minimum_order_value:
             queue.put({
-                'id': rate.id, 
-                'name': rate.name, 
-                'amount': 0.00,
+                'id': rate.id,
+                'name': rate.name,
+                'amount': Decimal('0'),
                 })
         return
 
@@ -90,10 +93,10 @@ class ShippingTable(ModelSQL, ModelView):
             'table', 'Table Lines')
     factor = fields.Selection([
             ('total_price', 'Total Price'),
-     
-            #('total_weight', 'Total Weight'),
-            #('total_quantity', 'Total Quantity'),
+            #TODO: ('total_weight', 'Total Weight'),
+            #TODO: ('total_quantity', 'Total Quantity'),
             ], 'Factor', required=True)
+
     def default_model(self):
         "Sets Self Name"
         return self._name
@@ -195,7 +198,5 @@ class ShippingTableLine(ModelSQL, ModelView):
     price = fields.Float('Price', required=True)
     table = fields.Many2One('nereid.shipping.method.table', 'Shipping Table')
 
-
-   
 
 ShippingTableLine()
