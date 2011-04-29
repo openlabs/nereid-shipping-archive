@@ -142,6 +142,10 @@ class NereidShipping(ModelSQL, ModelView):
 
         for method in available_methods:
             if method['id'] == shipment_method_id:
+                if not method['amount']:
+                    current_app.logger.debug(
+                        "Shipping amount is %s" % method['amount'])
+                    break
                 values = {
                     'description': 'Shipping (%s)' % method['name'],
                     'sale': sale.id,
