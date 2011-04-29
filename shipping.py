@@ -128,7 +128,7 @@ class NereidShipping(ModelSQL, ModelView):
         Then create a new line or overwrite and existing line in the sale order 
         with the name of the method and price and is_shipping_line flag set
         '''
-        sale_line_obj = self.pool.get('sale.sale.line')
+        sale_line_obj = self.pool.get('sale.line')
 
         address = sale.shipping_address
         available_methods = self._get_available_methods(
