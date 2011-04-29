@@ -12,63 +12,6 @@
           parent="nereid.menu_nereid" 
           groups="nereid.group_nereid_admin" />
 
-      <!--
-      <record model="ir.ui.view" id="shipping_method_view_form">
-          <field name="model">nereid.shipping</field>
-          <field name="type">form</field>
-          <field name="arch" type="xml">
-              <![CDATA[
-              <form string="Shipping Methods">
-                  <label name="name"/>
-                  <field name="name" />
-                  <label name="is_allowed_for_guest"/>
-                  <field name="is_allowed_for_guest" />
-                  <label name="active"/>
-                  <field name="active" />
-                  <label name="website"/>
-                  <field name="website" />
-                  <separator string="Available Countries" colspan="4" id="sepr_avail_countries"/>
-                  <field name="available_countries" colspan="4"/>
-              </form>
-              ]]>
-          </field>
-      </record> 
-      <record model="ir.ui.view" id="shipping_method_view_tree">
-          <field name="model">nereid.shipping</field>
-          <field name="type">tree</field>
-          <field name="arch" type="xml">
-              <![CDATA[
-              <tree string="Shipping Methods">
-                  <field name="name" />
-                  <field name="is_allowed_for_guest" />
-                  <field name="active" />
-                  <field name="website" />
-              </tree>
-              ]]>
-          </field>
-      </record>
-      <record model="ir.action.act_window" id="act_shipping_method_form">
-          <field name="name">Shipping Methods</field>
-          <field name="res_model">nereid.shipping</field>
-          <field name="view_type">form</field>
-      </record>
-      <record model="ir.action.act_window.view" id="shipping_method_form_view1">
-          <field name="sequence" eval="10"/>
-          <field name="view" ref="shipping_method_view_tree"/>
-          <field name="act_window" ref="act_shipping_method_form"/>
-      </record>
-      <record model="ir.action.act_window.view" id="shipping_method_form_view2">
-          <field name="sequence" eval="20"/>
-          <field name="view" ref="shipping_method_view_form"/>
-          <field name="act_window" ref="act_shipping_method_form"/>
-      </record>
-      <menuitem parent="menu_nereid_shipping" action="act_shipping_method_form"
-          id="menu_shipping_method_form" name="Nereid Shipping"/>
-      <menuitem name="Default Shipping"
-       	  sequence="50" id="menu_nereid_shipping_default"
-          parent="menu_nereid_shipping" 
-          groups="nereid.group_nereid_admin" />-->
-  
       <!-- nereid.shipping.method.flat -->
 
       <record model="ir.ui.view" id="shipping_flat_rate_view_form">
