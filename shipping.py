@@ -130,7 +130,7 @@ class NereidShipping(ModelSQL, ModelView):
         '''
         sale_line_obj = self.pool.get('sale.line')
 
-        address = sale.shipping_address
+        address = sale.shipment_address
         available_methods = self._get_available_methods(
             street = address.street,
             streetbis = address.streetbis,
