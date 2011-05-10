@@ -4,6 +4,7 @@
 "Nereid Shipping"
 
 from Queue import Queue
+from decimal import Decimal
 
 from nereid import abort
 from nereid.helpers import jsonify
@@ -149,7 +150,8 @@ class NereidShipping(ModelSQL, ModelView):
                 values = {
                     'description': 'Shipping (%s)' % method['name'],
                     'sale': sale.id,
-                    'unit_price': method['amount'],
+                    'unit_price': Decimal(str(method['amount'])),
+                    'quantity': 1,
                     'is_shipping_line': True,
                     }
                 existing_shipping_lines = sale_line_obj.search([

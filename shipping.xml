@@ -30,6 +30,8 @@
                     <field name="website" />
                     <label name="price"/>
                     <field name="price" />
+                    <label name="account_revenue"/>
+                    <field name="account_revenue" />
                     <separator string="Available Countries" colspan="4" id="sepr_avail_count1"/>   
                     <field name="available_countries" colspan="4"/>
                 </form>
@@ -54,7 +56,6 @@
       <record model="ir.action.act_window" id="act_shipping_flat_rate_form">
           <field name="name">Flat Rate Shipping</field>
           <field name="res_model">nereid.shipping.method.flat</field>
-          <field name="view_type">form</field>
       </record>
       <record model="ir.action.act_window.view" id="shipping_flat_rate_form_view1">
           <field name="sequence" eval="10"/>
@@ -87,6 +88,8 @@
                   <field name="website" />
                   <label name="minimum_order_value"/>
                   <field name="minimum_order_value" />
+                  <label name="account_revenue"/>
+                  <field name="account_revenue" />
                   <separator string="Available Countries" colspan="4" id="sepr_avail_countries"/>   
                   <field name="available_countries" colspan="4"/>
               </form>
@@ -111,7 +114,6 @@
       <record model="ir.action.act_window" id="act_shipping_free_form">
           <field name="name">Free Shipping</field>
           <field name="res_model">nereid.shipping.method.free</field>
-          <field name="view_type">form</field>
       </record>
       <record model="ir.action.act_window.view" id="act_shipping_free_form_view1">
           <field name="sequence" eval="10"/>
@@ -136,7 +138,7 @@
               <form string="Shipping Table">
                   <label name="name"/>
                   <field name="name" />
-                  <label name="is_allowed_for"/>
+                  <label name="is_allowed_for_guest"/>
                   <field name="is_allowed_for_guest" />
                   <label name="active"/>
                   <field name="active" />
@@ -144,11 +146,12 @@
                   <field name="website" />
                   <label name="factor"/>
                   <field name="factor" />
+                  <label name="account_revenue"/>
+                  <field name="account_revenue" />
                   <newline/>
                   <field name="lines" colspan="4" />
                   <separator string="Available Countries" colspan="4" id="sepr_avail_count3"/>                            
                   <field name="available_countries" colspan="4"/>
-                  <button name="price_get" type="object" string="Test" />
               </form>
               ]]>
           </field>
@@ -171,7 +174,6 @@
       <record model="ir.action.act_window" id="act_shipping_table_form">
           <field name="name">Shipping Table</field>
           <field name="res_model">nereid.shipping.method.table</field>
-          <field name="view_type">form</field>
       </record>
       <record model="ir.action.act_window.view" id="act_shipping_table_form_view1">
           <field name="sequence" eval="10"/>

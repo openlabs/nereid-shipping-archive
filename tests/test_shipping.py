@@ -73,7 +73,7 @@ class TestShipping(unittest.TestCase):
                 'category.jinja', ' ', cls.site)
 
             category = testing_proxy.create_product_category(
-                'Category', template=category_template, uri='category')
+                'Category', uri='category')
             stock_journal = journal_obj.search([('code', '=', 'STO')])[0]
             cls.product = testing_proxy.create_product(
                 'product 1', category,
@@ -84,7 +84,6 @@ class TestShipping(unittest.TestCase):
                 cost_price = Decimal('5'),
                 account_expense = testing_proxy.get_account_by_kind('expense'),
                 account_revenue = testing_proxy.get_account_by_kind('revenue'),
-                nereid_template = product_template,
                 uri = 'product-1',
                 sale_uom = uom_obj.search([('name', '=', 'Unit')], limit=1)[0],
                 #account_journal_stock_input = stock_journal,
@@ -246,6 +245,7 @@ class TestShipping(unittest.TestCase):
         """Free rate shipping method must be available, if created, 
             on successful satifaction of a condition.
         """
+        app = self.get_app()
         with Transaction().start(testing_proxy.db_name, 
                 testing_proxy.user, testing_proxy.context) as txn:
             flat_rate_id = self.flat_obj.search([])[0]
@@ -266,7 +266,6 @@ class TestShipping(unittest.TestCase):
 
             txn.cursor.commit()
 
-        app = self.get_app()
         with app.test_client() as c:
             # Create an order of low value
             c.post('/cart/add', data={'product': self.product, 'quantity': 1})
@@ -294,7 +293,6 @@ class TestShipping(unittest.TestCase):
 
             txn.cursor.commit()
 
-        app = self.get_app()
         with app.test_client() as c:
             # Update order to have more value
             expected_result.append([free_rate, u'Free Rate', 0.0])
@@ -307,6 +305,8 @@ class TestShipping(unittest.TestCase):
         """Table rate method must be available, if created,
             on successful satisfaction of conditions.
         """
+        app = self.get_app()
+        
         with Transaction().start(testing_proxy.db_name, 
                 testing_proxy.user, testing_proxy.context) as txn:
 
@@ -323,14 +323,14 @@ class TestShipping(unittest.TestCase):
 
             table = self.table_obj.create({
                 'name': 'Table Rate',
-                'available_countries': [('add', [c.id for c in website.countries])], 
+                'available_countries': [('set', [c.id for c in website.countries])], 
                 'website': website.id,
                 'factor': 'total_price',
                 })
 
             line = self.table_line_obj.create({
-                'country': int(website.countries[3].id),
-                'subdivision': int(website.countries[3].subdivisions[0].id),
+                'country': country.id,
+                'subdivision': subdivision.id,
                 'zip': '682013',
                 'factor': 250.0,
                 'price': Decimal('25.0'),
@@ -340,12 +340,12 @@ class TestShipping(unittest.TestCase):
             #: float because the prices are JSON serialised
             expected_result = [
                 [flat_rate.id, flat_rate.name, float(flat_rate.price)],
-                [free_rate.id, free_rate.name, 0.00]
+                [free_rate.id, free_rate.name, 0.00],
+                [table, u'Table Rate', 25.0]
                 ]
 
             txn.cursor.commit()
 
-        app = self.get_app()
         with app.test_client() as c:
             # Create an order of low value
             c.post('/cart/add', data={'product': product, 'quantity': 3})
@@ -356,16 +356,14 @@ class TestShipping(unittest.TestCase):
                 'city': 'Ernakulam',
                 'zip': '682013',
                 'subdivision': subdivision.id,
-                'country': int(website.countries[3].id),
+                'country': country.id,
                 })
             result = c.get(url)
             self.assertEqual(
-                json.loads(result.data), {u'result': expected_result})
+                json.loads(result.data), {u'result': [expected_result[0]]})
 
             # Add more products to make order high value
-            c.post('/cart/add', data={'product': product, 'quantity': 7})
-
-            expected_result.append([table, u'Table Rate', 25.0])
+            c.post('/cart/add', data={'product': product, 'quantity': 50})
 
             url = '/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
@@ -373,7 +371,7 @@ class TestShipping(unittest.TestCase):
                 'city': 'Ernakulam',
                 'zip': '682013',
                 'subdivision': subdivision.id,
-                'country': int(website.countries[3].id),
+                'country': country.id,
                 })
             result = c.get(url)
             self.assertEqual(
@@ -435,7 +433,6 @@ class TestShipping(unittest.TestCase):
                 })
             txn.cursor.commit()
 
-        app = self.get_app()
         with app.test_client() as c:
             c.post('/login', 
                 data={'email': 'email@example.com', 'password': 'password'})
@@ -446,7 +443,7 @@ class TestShipping(unittest.TestCase):
             self.assertEqual(
                 json.loads(result.data), {u'result': expected_result})
 
-            c.post('/cart/add', data={'product': self.product, 'quantity': 3})
+            c.post('/cart/add', data={'product': self.product, 'quantity': 50})
 
             url = '/_available_shipping_methods?' + urlencode({
                 'address': address.id,
@@ -458,7 +455,7 @@ class TestShipping(unittest.TestCase):
             # Table rate will fail here as the country being submitted is not in 
             # table lines.
 
-            c.post('/cart/add', data={'product': self.product, 'quantity': 7})
+            c.post('/cart/add', data={'product': self.product, 'quantity': 50})
 
             url = '/_available_shipping_methods?' + urlencode({
                 'address': address.id,
@@ -474,21 +471,89 @@ class TestShipping(unittest.TestCase):
                 'subdivision': subdivision.id,
                 'zip': '112233',
                 'factor': 200.0,
-                'price': Decimal('20.0'),
+                'price': Decimal('25.0'),
                 'table': table_rate.id,
                 })
+            expected_result2.append([table_rate.id, table_rate.name, 25.0])
             txn.cursor.commit()
 
-        app = self.get_app()
         with app.test_client() as c:
-            expected_result.append([table_rate.id, table_rate.name, 20.0])
-
+        
+            c.post('/cart/add', data={'product': self.product, 'quantity': 50})
+            
+            url = '/_available_shipping_methods?' + urlencode({
+                'street': '2J Skyline Daffodil',
+                'streetbis': 'Petta, Trippunithura',
+                'city': 'Ernakulam',
+                'zip': '682013',
+                'subdivision': subdivision.id,
+                'country': country.id,
+                })
             result = c.get(url)
-            self.assertEqual(json.loads(result.data), {u'result': expected_result})
+            self.assertEqual(json.loads(result.data), {u'result': expected_result2})
+            
+    def test_0070_checkout(self):
+        """Test whether shipping line is added while checkout
+        """
+        app = self.get_app(DEBUG=True)
+
+        with Transaction().start(testing_proxy.db_name,
+                testing_proxy.user, testing_proxy.context) as txn:
+            shipping_obj = testing_proxy.pool.get('nereid.shipping')
+            website_id = self.website_obj.search([])[0]
+            website = self.website_obj.browse(website_id)
+            country = website.countries[0]
+            subdivision = country.subdivisions[0]
+
+            country = self.country_obj.browse(self.available_countries[0])
+            subdivision = country.subdivisions[0]
+
+            country_id = website.countries[0].id
+            
+            shipment_method_id = shipping_obj.search([])[0]
+            txn.cursor.commit()
+
+        with app.test_client() as c:
+            c.post('/cart/add', data={
+                'product': self.product, 'quantity': 30
+                })
+            
+            rv = c.get('/checkout')
+            self.assertEqual(rv.status_code, 200)
+
+            rv = c.post('/checkout', data={
+                'new_billing_address-name'          : 'Name',
+                'new_billing_address-street'        : 'Street',
+                'new_billing_address-streetbis'     : 'Streetbis',
+                'new_billing_address-zip'           : 'ZIP',
+                'new_billing_address-city'          : 'City',
+                'new_billing_address-email'         : 'email123@example.com',
+                'new_billing_address-phone'         : '1234567',
+                'new_billing_address-country'       : country.id,
+                'new_billing_address-subdivision'   : subdivision.id,
+                'shipping_same_as_billing'          : True,
+                'shipment_method'                   : shipment_method_id,
+                'payment_method'                    : 1,
+                })
+            self.assertEqual(rv.status_code, 302)
+            
+            with Transaction().start(testing_proxy.db_name, 
+                testing_proxy.user, testing_proxy.context):
+                sales_ids = self.sale_obj.search([
+                    ('state', '!=', 'draft'), ('is_cart', '=', True)
+                    ], order=[('id', 'DESC')])
+                self.assertEqual(len(sales_ids), 1)
+                sale = self.sale_obj.browse(sales_ids[0])
+                self.assertEqual(sale.total_amount, Decimal('300'))
+                self.assertEqual(sale.tax_amount, Decimal('0'))
+                self.assertEqual(len(sale.lines), 1)
+                self.assertEqual(sale.state, 'confirmed')
+                self.assertEqual(len(sale.invoices), 1)
+                self.assertEqual(len(sale.shipments), 1)
 
 
 def suite():
-    "Checkout test suite"
+    "Shipping test suite"
     suite = unittest.TestSuite()
     suite.addTests(
         unittest.TestLoader().loadTestsFromTestCase(TestShipping)

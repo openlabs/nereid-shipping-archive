@@ -173,7 +173,7 @@ class ShippingTable(ModelSQL, ModelView):
         line_obj = self.pool.get('shipping.method.table.line')
 
         for line in line_obj.browse(lines):
-            if compared_value >= line.factor:
+            if float(compared_value) >= float(line.factor):
                 return {
                     'id': line.table.id,
                     'name': line.table.name, 
