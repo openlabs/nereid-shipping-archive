@@ -140,6 +140,7 @@ class NereidShipping(ModelSQL, ModelView):
             subdivision = address.subdivision.id,
             country = address.country.id,
             )
+        current_app.logger.debug("I am getting mad....")
 
         for method in available_methods:
             if method['id'] == shipment_method_id:
@@ -183,6 +184,9 @@ class DefaultCheckout(ModelSQL):
     "Default Checkout Functionality process payment addition"
 
     _name = 'nereid.checkout.default'
+    
+    def __init__(self):
+        super(DefaultCheckout, self).__init__()
 
     def _process_shipment(self, sale, form):
         """Process the payment

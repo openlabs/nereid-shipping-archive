@@ -34,6 +34,7 @@ class TestShipping(unittest.TestCase):
         uom_obj = testing_proxy.pool.get('product.uom')
         journal_obj = testing_proxy.pool.get('account.journal')
         country_obj = testing_proxy.pool.get('country.country')
+        currency_obj = testing_proxy.pool.get('currency.currency')
 
         with Transaction().start(testing_proxy.db_name, 1, None) as txn:
             # Create company
@@ -53,10 +54,12 @@ class TestShipping(unittest.TestCase):
             product_template = testing_proxy.create_template(
                 'product-list.jinja', ' ')
             cls.available_countries = country_obj.search([], limit=5)
+            cls.available_currencies = currency_obj.search([('code', '=', 'USD')])
             cls.site = testing_proxy.create_site('testsite.com', 
                 category_template = category_template,
                 product_template = product_template,
-                countries = [('set', cls.available_countries)])
+                countries = [('set', cls.available_countries)],
+                currencies = [('set', cls.available_currencies)],)
 
             testing_proxy.create_template('home.jinja', ' Home ', cls.site)
             testing_proxy.create_template('checkout.jinja', 
@@ -113,13 +116,13 @@ class TestShipping(unittest.TestCase):
         """Assert nothing broke the cart."""
         app = self.get_app()
         with app.test_client() as c:
-            rv = c.get('/cart')
+            rv = c.get('/en_US/cart')
             self.assertEqual(rv.status_code, 200)
 
-            c.post('/cart/add', data={
+            c.post('/en_US/cart/add', data={
                 'product': self.product, 'quantity': 5
                 })
-            rv = c.get('/cart')
+            rv = c.get('/en_US/cart')
             self.assertEqual(rv.status_code, 200)
 
         with Transaction().start(testing_proxy.db_name, testing_proxy.user, None):
@@ -147,7 +150,7 @@ class TestShipping(unittest.TestCase):
 
         app = self.get_app()
         with app.test_client() as c:
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
                 'city': 'Ernakulam',
@@ -188,7 +191,7 @@ class TestShipping(unittest.TestCase):
         app = self.get_app()
         with app.test_client() as c:
             # passing an invalid address withw wrong country       
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 #'streetbis': 'Petta, Trippunithura',
                 #'city': 'Ernakulam',
@@ -200,7 +203,7 @@ class TestShipping(unittest.TestCase):
 
             self.assertEqual(
                 json.loads(result.data), {u'result': []})
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
                 'city': 'Ernakulam',
@@ -228,7 +231,7 @@ class TestShipping(unittest.TestCase):
 
         app = self.get_app()
         with app.test_client() as c:
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
                 'city': 'Ernakulam',
@@ -268,9 +271,9 @@ class TestShipping(unittest.TestCase):
 
         with app.test_client() as c:
             # Create an order of low value
-            c.post('/cart/add', data={'product': self.product, 'quantity': 1})
+            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 1})
 
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
                 'city': 'Ernakulam',
@@ -296,7 +299,7 @@ class TestShipping(unittest.TestCase):
         with app.test_client() as c:
             # Update order to have more value
             expected_result.append([free_rate, u'Free Rate', 0.0])
-            c.post('/cart/add', data={'product': self.product, 'quantity': 50})
+            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 50})
             result = c.get(url)
             self.assertEqual(
                 json.loads(result.data), {u'result': expected_result})
@@ -348,9 +351,9 @@ class TestShipping(unittest.TestCase):
 
         with app.test_client() as c:
             # Create an order of low value
-            c.post('/cart/add', data={'product': product, 'quantity': 3})
+            c.post('/en_US/cart/add', data={'product': product, 'quantity': 3})
 
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
                 'city': 'Ernakulam',
@@ -363,9 +366,9 @@ class TestShipping(unittest.TestCase):
                 json.loads(result.data), {u'result': [expected_result[0]]})
 
             # Add more products to make order high value
-            c.post('/cart/add', data={'product': product, 'quantity': 50})
+            c.post('/en_US/cart/add', data={'product': product, 'quantity': 50})
 
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
                 'city': 'Ernakulam',
@@ -407,10 +410,10 @@ class TestShipping(unittest.TestCase):
 
         app = self.get_app()
         with app.test_client() as c:
-            c.post('/login', 
+            c.post('/en_US/login', 
                 data={'email': 'email@example.com', 'password': 'password'})
-            c.post('/cart/add', data={'product': self.product, 'quantity': 3})
-            url = '/_available_shipping_methods?' + urlencode({
+            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 3})
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
                 'city': 'Ernakulam',
@@ -434,18 +437,18 @@ class TestShipping(unittest.TestCase):
             txn.cursor.commit()
 
         with app.test_client() as c:
-            c.post('/login', 
+            c.post('/en_US/login', 
                 data={'email': 'email@example.com', 'password': 'password'})
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'address': address.id,
                 })
             result = c.get(url)
             self.assertEqual(
                 json.loads(result.data), {u'result': expected_result})
 
-            c.post('/cart/add', data={'product': self.product, 'quantity': 50})
+            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 50})
 
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'address': address.id,
                 })
             result = c.get(url)
@@ -455,9 +458,9 @@ class TestShipping(unittest.TestCase):
             # Table rate will fail here as the country being submitted is not in 
             # table lines.
 
-            c.post('/cart/add', data={'product': self.product, 'quantity': 50})
+            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 50})
 
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'address': address.id,
                 })
             result = c.get(url)
@@ -479,9 +482,9 @@ class TestShipping(unittest.TestCase):
 
         with app.test_client() as c:
         
-            c.post('/cart/add', data={'product': self.product, 'quantity': 50})
+            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 50})
             
-            url = '/_available_shipping_methods?' + urlencode({
+            url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
                 'city': 'Ernakulam',
@@ -514,14 +517,14 @@ class TestShipping(unittest.TestCase):
             txn.cursor.commit()
 
         with app.test_client() as c:
-            c.post('/cart/add', data={
+            c.post('/en_US/cart/add', data={
                 'product': self.product, 'quantity': 30
                 })
             
-            rv = c.get('/checkout')
+            rv = c.get('/en_US/checkout')
             self.assertEqual(rv.status_code, 200)
 
-            rv = c.post('/checkout', data={
+            rv = c.post('/en_US/checkout', data={
                 'new_billing_address-name'          : 'Name',
                 'new_billing_address-street'        : 'Street',
                 'new_billing_address-streetbis'     : 'Streetbis',
