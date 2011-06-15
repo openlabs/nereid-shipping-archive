@@ -38,16 +38,16 @@ class TestShipping(unittest.TestCase):
 
         with Transaction().start(testing_proxy.db_name, 1, None) as txn:
             # Create company
-            company = testing_proxy.create_company('Test Company')
-            testing_proxy.set_company_for_user(1, company)
+            cls.company = testing_proxy.create_company('Test Company')
+            testing_proxy.set_company_for_user(1, cls.company)
             # Create Fiscal Year
-            fiscal_year = testing_proxy.create_fiscal_year(company=company)
+            fiscal_year = testing_proxy.create_fiscal_year(company=cls.company)
             # Create Chart of Accounts
-            testing_proxy.create_coa_minimal(company)
+            testing_proxy.create_coa_minimal(cls.company)
             # Create payment term
             testing_proxy.create_payment_term()
 
-            cls.guest_user = testing_proxy.create_guest_user()
+            cls.guest_user = testing_proxy.create_guest_user(company=cls.company)
 
             category_template = testing_proxy.create_template(
                 'category-list.jinja', ' ')
@@ -397,7 +397,7 @@ class TestShipping(unittest.TestCase):
             table_rate = self.table_obj.browse(table_rate_id)
 
             regd_user_id = testing_proxy.create_user_party('Registered User', 
-                    'email@example.com', 'password')
+                    'email@example.com', 'password', company=self.company)
             address = self.address_obj.browse(regd_user_id)
 
             expected_result = [

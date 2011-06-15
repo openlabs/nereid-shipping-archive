@@ -140,7 +140,6 @@ class NereidShipping(ModelSQL, ModelView):
             subdivision = address.subdivision.id,
             country = address.country.id,
             )
-        current_app.logger.debug("I am getting mad....")
 
         for method in available_methods:
             if method['id'] == shipment_method_id:
