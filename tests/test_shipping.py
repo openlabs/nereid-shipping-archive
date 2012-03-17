@@ -4,13 +4,11 @@
 
     Test Shipping Methods
 
-    :copyright: © 2011 by Openlabs Technologies & Consulting (P) Limited
+    :copyright: © 2011-2012 by Openlabs Technologies & Consulting (P) Limited
     :license: BSD, see LICENSE for more details.
 """
 import json
-from Queue import Queue
 from urllib import urlencode
-from ast import literal_eval
 from decimal import Decimal
 import unittest2 as unittest
 
@@ -19,16 +17,17 @@ CONFIG.options['db_type'] = 'sqlite'
 from trytond.modules import register_classes
 register_classes()
 
-from nereid.testing import testing_proxy
+from nereid.testing import testing_proxy, TestCase
 from trytond.transaction import Transaction
 
 
-class TestShipping(unittest.TestCase):
+class TestShipping(TestCase):
     """Test Shipping Methods"""
 
     @classmethod
     def setUpClass(cls):
-        # Install module
+        super(TestShipping, cls).setUpClass()
+
         testing_proxy.install_module('nereid_shipping')
 
         uom_obj = testing_proxy.pool.get('product.uom')
@@ -47,28 +46,35 @@ class TestShipping(unittest.TestCase):
             # Create payment term
             testing_proxy.create_payment_term()
 
-            cls.guest_user = testing_proxy.create_guest_user(company=cls.company)
+            cls.guest_user = testing_proxy.create_guest_user(
+                company=cls.company
+            )
 
             category_template = testing_proxy.create_template(
                 'category-list.jinja', ' ')
             product_template = testing_proxy.create_template(
                 'product-list.jinja', ' ')
             cls.available_countries = country_obj.search([], limit=5)
-            cls.available_currencies = currency_obj.search([('code', '=', 'USD')])
-            cls.site = testing_proxy.create_site('testsite.com', 
+            cls.available_currencies = currency_obj.search(
+                [('code', '=', 'USD')]
+            )
+            cls.site = testing_proxy.create_site('testsite.com',
                 category_template = category_template,
                 product_template = product_template,
                 countries = [('set', cls.available_countries)],
                 currencies = [('set', cls.available_currencies)],)
 
             testing_proxy.create_template('home.jinja', ' Home ', cls.site)
-            testing_proxy.create_template('checkout.jinja', 
+            testing_proxy.create_template('checkout.jinja',
                 '{{form.errors}}', cls.site)
             testing_proxy.create_template(
-                'login.jinja', 
-                '{{ login_form.errors }} {{get_flashed_messages()}}', cls.site)
-            testing_proxy.create_template('shopping-cart.jinja', 
-                'Cart:{{ cart.id }},{{get_cart_size()|round|int}},{{cart.sale.total_amount}}', 
+                'login.jinja',
+                '{{ login_form.errors }} {{get_flashed_messages()}}',
+                cls.site)
+            testing_proxy.create_template(
+                'shopping-cart.jinja',
+                'Cart:{{ cart.id }},{{get_cart_size()|round|int}}'
+                    ',{{cart.sale.total_amount}}',
                 cls.site)
             product_template = testing_proxy.create_template(
                 'product.jinja', ' ', cls.site)
@@ -92,6 +98,7 @@ class TestShipping(unittest.TestCase):
                 #account_journal_stock_input = stock_journal,
                 #account_journal_stock_output = stock_journal,
                 )
+            cls.account_revenue = testing_proxy.get_account_by_kind('revenue')
 
             txn.cursor.commit()
 
@@ -107,10 +114,21 @@ class TestShipping(unittest.TestCase):
         self.country_obj = testing_proxy.pool.get('country.country')
         self.address_obj = testing_proxy.pool.get('party.address')
         self.website_obj = testing_proxy.pool.get('nereid.website')
-        self.flat_obj = testing_proxy.pool.get('nereid.shipping.method.flat')
-        self.free_obj = testing_proxy.pool.get('nereid.shipping.method.free')
-        self.table_obj = testing_proxy.pool.get('nereid.shipping.method.table')
-        self.table_line_obj = testing_proxy.pool.get('shipping.method.table.line')
+        self.flat_obj = testing_proxy.pool.get(
+            'nereid.shipping.method.flat'
+        )
+        self.free_obj = testing_proxy.pool.get(
+            'nereid.shipping.method.free'
+        )
+        self.table_obj = testing_proxy.pool.get(
+            'nereid.shipping.method.table'
+        )
+        self.table_line_obj = testing_proxy.pool.get(
+            'shipping.method.table.line'
+        )
+        self.nereid_user_obj = testing_proxy.pool.get('nereid.user')
+        self.ir_property_obj = testing_proxy.pool.get('ir.property')
+        self.ir_field_obj = testing_proxy.pool.get('ir.model.field')
 
     def test_0010_check_cart(self):
         """Assert nothing broke the cart."""
@@ -125,7 +143,8 @@ class TestShipping(unittest.TestCase):
             rv = c.get('/en_US/cart')
             self.assertEqual(rv.status_code, 200)
 
-        with Transaction().start(testing_proxy.db_name, testing_proxy.user, None):
+        with Transaction().start(
+                    testing_proxy.db_name, testing_proxy.user, None):
             sales_ids = self.sale_obj.search([])
             self.assertEqual(len(sales_ids), 1)
             sale = self.sale_obj.browse(sales_ids[0])
@@ -138,7 +157,7 @@ class TestShipping(unittest.TestCase):
         When no gateway is enabled then an empty list must be returned
         despite all shipping methods being there
         """
-        with Transaction().start(testing_proxy.db_name, 
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
 
             website_id = self.website_obj.search([])[0]
@@ -157,7 +176,7 @@ class TestShipping(unittest.TestCase):
                 'zip': '682013',
                 'subdivision': subdivision.id,
                 'country': country.id,
-                })
+            })
             result = c.get(url)
             self.assertEqual(json.loads(result.data), {u'result': []})
 
@@ -167,7 +186,7 @@ class TestShipping(unittest.TestCase):
             If method is not allowed for guest user, he should not get
             that method.
         """
-        with Transaction().start(testing_proxy.db_name, 
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
             website_id = self.website_obj.search([])[0]
             website = self.website_obj.browse(website_id)
@@ -175,16 +194,18 @@ class TestShipping(unittest.TestCase):
             subdivision = country.subdivisions[0]
 
             flat_rate = self.flat_obj.create({
-                'name': 'Flat Rate', 
-                'available_countries': [('add', [c.id for c in website.countries])], 
+                'name': 'Flat Rate',
+                'available_countries': [
+                    ('add', [c.id for c in website.countries])
+                ],
                 'website': website.id,
                 'price': Decimal('10.0'),
-                })
+            })
             expected_result = {
                 'amount': 10.0,
                 'id': flat_rate,
                 'name': u'Flat Rate'
-                }
+            }
 
             txn.cursor.commit()
 
@@ -214,18 +235,18 @@ class TestShipping(unittest.TestCase):
             result = c.get(url)
 
             self.assertEqual(
-                json.loads(result.data), 
+                json.loads(result.data),
                 {u'result': [[
-                    expected_result['id'], 
-                    expected_result['name'], 
+                    expected_result['id'],
+                    expected_result['name'],
                     expected_result['amount']
                     ]]
                 })
-        with Transaction().start(testing_proxy.db_name, 
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
             self.flat_obj.write(flat_rate, {
                 'is_allowed_for_guest': False
-                })
+            })
 
             txn.cursor.commit()
 
@@ -238,18 +259,18 @@ class TestShipping(unittest.TestCase):
                 'zip': '682013',
                 'subdivision': subdivision.id,
                 'country': country.id,
-                })
+            })
             result = c.get(url)
 
             self.assertEqual(
                 json.loads(result.data), {u'result': []})
 
     def test_0040_free_rate(self):
-        """Free rate shipping method must be available, if created, 
+        """Free rate shipping method must be available, if created,
             on successful satifaction of a condition.
         """
         app = self.get_app()
-        with Transaction().start(testing_proxy.db_name, 
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
             flat_rate_id = self.flat_obj.search([])[0]
             flat_rate = self.flat_obj.browse(flat_rate_id)
@@ -259,19 +280,26 @@ class TestShipping(unittest.TestCase):
             subdivision = country.subdivisions[0]
 
             free_rate = self.free_obj.create({
-                'name': 'Free Rate', 
-                'available_countries': [('add', [c.id for c in website.countries])], 
+                'name': 'Free Rate',
+                'available_countries': [
+                    ('add', [c.id for c in website.countries])
+                ],
                 'website': website_id,
                 'minimum_order_value': Decimal('100.0'),
                 })
 
-            expected_result = [[flat_rate.id, flat_rate.name, float(flat_rate.price)]]
+            expected_result = [
+                [flat_rate.id, flat_rate.name, float(flat_rate.price)]
+            ]
 
             txn.cursor.commit()
 
         with app.test_client() as c:
             # Create an order of low value
-            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 1})
+            c.post(
+                '/en_US/cart/add',
+                data={'product': self.product, 'quantity': 1}
+            )
 
             url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
@@ -287,7 +315,7 @@ class TestShipping(unittest.TestCase):
             self.assertEqual(
                 json.loads(result.data), {u'result': []})
 
-        with Transaction().start(testing_proxy.db_name, 
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
 
             self.flat_obj.write(flat_rate.id, {
@@ -299,7 +327,9 @@ class TestShipping(unittest.TestCase):
         with app.test_client() as c:
             # Update order to have more value
             expected_result.append([free_rate, u'Free Rate', 0.0])
-            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 50})
+            c.post(
+                '/en_US/cart/add',
+                data={'product': self.product, 'quantity': 50})
             result = c.get(url)
             self.assertEqual(
                 json.loads(result.data), {u'result': expected_result})
@@ -309,8 +339,8 @@ class TestShipping(unittest.TestCase):
             on successful satisfaction of conditions.
         """
         app = self.get_app()
-        
-        with Transaction().start(testing_proxy.db_name, 
+
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
 
             flat_rate_id = self.flat_obj.search([])[0]
@@ -326,7 +356,9 @@ class TestShipping(unittest.TestCase):
 
             table = self.table_obj.create({
                 'name': 'Table Rate',
-                'available_countries': [('set', [c.id for c in website.countries])], 
+                'available_countries': [
+                    ('set', [c.id for c in website.countries])
+                ],
                 'website': website.id,
                 'factor': 'total_price',
                 })
@@ -351,7 +383,10 @@ class TestShipping(unittest.TestCase):
 
         with app.test_client() as c:
             # Create an order of low value
-            c.post('/en_US/cart/add', data={'product': product, 'quantity': 3})
+            c.post(
+                '/en_US/cart/add',
+                data={'product': product, 'quantity': 3}
+            )
 
             url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
@@ -366,7 +401,10 @@ class TestShipping(unittest.TestCase):
                 json.loads(result.data), {u'result': [expected_result[0]]})
 
             # Add more products to make order high value
-            c.post('/en_US/cart/add', data={'product': product, 'quantity': 50})
+            c.post(
+                '/en_US/cart/add',
+                data={'product': product, 'quantity': 50}
+            )
 
             url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
@@ -383,7 +421,7 @@ class TestShipping(unittest.TestCase):
     def test_0060_shipping_w_login(self):
         """Test all the cases for a logged in user.
         """
-        with Transaction().start(testing_proxy.db_name, 
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
             flat_rate_id = self.flat_obj.search([])[0]
             flat_rate = self.flat_obj.browse(flat_rate_id)
@@ -396,9 +434,11 @@ class TestShipping(unittest.TestCase):
             table_rate_id = self.table_obj.search([])[0]
             table_rate = self.table_obj.browse(table_rate_id)
 
-            regd_user_id = testing_proxy.create_user_party('Registered User', 
-                    'email@example.com', 'password', company=self.company)
-            address = self.address_obj.browse(regd_user_id)
+            regd_user_id = testing_proxy.create_user_party('Registered User',
+                    'email@example.com', 'password', company=self.company
+            )
+            regd_user = self.nereid_user_obj.browse(regd_user_id)
+            address = regd_user.party.addresses[0]
 
             expected_result = [
                 [flat_rate.id, flat_rate.name, float(flat_rate.price)]
@@ -410,9 +450,12 @@ class TestShipping(unittest.TestCase):
 
         app = self.get_app()
         with app.test_client() as c:
-            c.post('/en_US/login', 
+            c.post('/en_US/login',
                 data={'email': 'email@example.com', 'password': 'password'})
-            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 3})
+            c.post(
+                '/en_US/cart/add',
+                data={'product': self.product, 'quantity': 3}
+            )
             url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
@@ -422,9 +465,12 @@ class TestShipping(unittest.TestCase):
                 'country': country.id,
                 })
             result = c.get(url)
-            self.assertEqual(json.loads(result.data), {u'result': expected_result})
+            self.assertEqual(
+                json.loads(result.data),
+                {u'result': expected_result}
+            )
 
-        with Transaction().start(testing_proxy.db_name, 
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
             self.address_obj.write(address.id, {
                 'street': 'C/21',
@@ -437,28 +483,20 @@ class TestShipping(unittest.TestCase):
             txn.cursor.commit()
 
         with app.test_client() as c:
-            c.post('/en_US/login', 
+            c.post('/en_US/login',
                 data={'email': 'email@example.com', 'password': 'password'})
             url = '/en_US/_available_shipping_methods?' + urlencode({
                 'address': address.id,
                 })
             result = c.get(url)
             self.assertEqual(
-                json.loads(result.data), {u'result': expected_result})
+                json.loads(result.data), {u'result': expected_result}
+            )
 
-            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 50})
-
-            url = '/en_US/_available_shipping_methods?' + urlencode({
-                'address': address.id,
-                })
-            result = c.get(url)
-            self.assertEqual(
-                json.loads(result.data), {u'result': expected_result2})
-
-            # Table rate will fail here as the country being submitted is not in 
-            # table lines.
-
-            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 50})
+            c.post(
+                '/en_US/cart/add',
+                data={'product': self.product, 'quantity': 50}
+            )
 
             url = '/en_US/_available_shipping_methods?' + urlencode({
                 'address': address.id,
@@ -467,7 +505,22 @@ class TestShipping(unittest.TestCase):
             self.assertEqual(
                 json.loads(result.data), {u'result': expected_result2})
 
-        with Transaction().start(testing_proxy.db_name, 
+            # Table rate will fail here as the country being submitted is 
+            # not in table lines.
+
+            c.post(
+                '/en_US/cart/add',
+                data={'product': self.product, 'quantity': 50}
+            )
+
+            url = '/en_US/_available_shipping_methods?' + urlencode({
+                'address': address.id,
+                })
+            result = c.get(url)
+            self.assertEqual(
+                json.loads(result.data), {u'result': expected_result2})
+
+        with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
             line = self.table_line_obj.create({
                 'country': country.id,
@@ -477,13 +530,17 @@ class TestShipping(unittest.TestCase):
                 'price': Decimal('25.0'),
                 'table': table_rate.id,
                 })
+            table_rate = self.table_obj.browse(table_rate_id)
             expected_result2.append([table_rate.id, table_rate.name, 25.0])
             txn.cursor.commit()
 
         with app.test_client() as c:
-        
-            c.post('/en_US/cart/add', data={'product': self.product, 'quantity': 50})
-            
+
+            c.post(
+                '/en_US/cart/add',
+                data={'product': self.product, 'quantity': 50}
+            )
+
             url = '/en_US/_available_shipping_methods?' + urlencode({
                 'street': '2J Skyline Daffodil',
                 'streetbis': 'Petta, Trippunithura',
@@ -493,8 +550,11 @@ class TestShipping(unittest.TestCase):
                 'country': country.id,
                 })
             result = c.get(url)
-            self.assertEqual(json.loads(result.data), {u'result': expected_result2})
-            
+            self.assertEqual(
+                json.loads(result.data),
+                {u'result': expected_result2}
+            )
+
     def test_0070_checkout(self):
         """Test whether shipping line is added while checkout
         """
@@ -512,15 +572,30 @@ class TestShipping(unittest.TestCase):
             subdivision = country.subdivisions[0]
 
             country_id = website.countries[0].id
-            
-            shipment_method_id = shipping_obj.search([])[0]
+
+            shipment_method_id = self.flat_obj.search([])[0]
+            shipment_method = shipping_obj.browse(shipment_method_id)
+
+            # Create an account_revenue entry so that the shipping line
+            # picks it up automatically
+            field_id, = self.ir_field_obj.search([
+                ('model.model', '=', 'product.template'),
+                ('name', '=', 'account_revenue')
+            ])
+            self.ir_property_obj.create({
+                'name': 'account_revenue',
+                'field': field_id,
+                'res': False,
+                'value': 'account.account,%d' % self.account_revenue
+            })
+
             txn.cursor.commit()
 
         with app.test_client() as c:
             c.post('/en_US/cart/add', data={
                 'product': self.product, 'quantity': 30
                 })
-            
+
             rv = c.get('/en_US/checkout')
             self.assertEqual(rv.status_code, 200)
 
@@ -537,19 +612,19 @@ class TestShipping(unittest.TestCase):
                 'shipping_same_as_billing'          : True,
                 'shipment_method'                   : shipment_method_id,
                 'payment_method'                    : 1,
-                })
+            })
             self.assertEqual(rv.status_code, 302)
-            
-            with Transaction().start(testing_proxy.db_name, 
-                testing_proxy.user, testing_proxy.context):
+
+            with Transaction().start(testing_proxy.db_name,
+                        testing_proxy.user, testing_proxy.context):
                 sales_ids = self.sale_obj.search([
                     ('state', '!=', 'draft'), ('is_cart', '=', True)
                     ], order=[('id', 'DESC')])
                 self.assertEqual(len(sales_ids), 1)
                 sale = self.sale_obj.browse(sales_ids[0])
-                self.assertEqual(sale.total_amount, Decimal('300'))
+                self.assertEqual(sale.total_amount, Decimal('310'))
                 self.assertEqual(sale.tax_amount, Decimal('0'))
-                self.assertEqual(len(sale.lines), 1)
+                self.assertEqual(len(sale.lines), 2)
                 self.assertEqual(sale.state, 'confirmed')
                 self.assertEqual(len(sale.invoices), 1)
                 self.assertEqual(len(sale.shipments), 1)

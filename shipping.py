@@ -1,8 +1,10 @@
-# This file is part of Nereid.  The COPYRIGHT file at the top level of
-# this repository contains the full copyright notices and license terms.
+# -*- coding: utf-8 -*-
+"""
+    shipping
 
-"Nereid Shipping"
-
+    :copyright: (c) 2011-2012 by Openlabs Technologies & Consulting (P) LTD
+    :license: BSD, see LICENSE for more details.
+"""
 from Queue import Queue
 from decimal import Decimal
 
@@ -17,11 +19,13 @@ class NereidShipping(ModelSQL, ModelView):
     _name = "nereid.shipping"
     _description = __doc__
 
-    name = fields.Char('Name', required=True)
+    name = fields.Char('Name', required=True, translate=True)
     active = fields.Boolean('Active')
     is_allowed_for_guest = fields.Boolean('Is allowed for Guest ?')
-    available_countries = fields.Many2Many('nereid.shipping-country.country',
-            'shipping', 'country', 'Countries Available')
+    available_countries = fields.Many2Many(
+        'nereid.shipping-country.country',
+        'shipping', 'country', 'Countries Available'
+    )
     website = fields.Many2One('nereid.website', 'Website')
 
     def default_is_allowed_for_guest(self):
@@ -64,8 +68,8 @@ class NereidShipping(ModelSQL, ModelView):
                 abort(403)
             # If not validated as user's address this could lead to 
             # exploitation by ID
-            address_id = int(request.args.get('address'))
-            if address_id not in [a.id for a in 
+            address_id = request.args.get('address', type=int)
+            if address_id not in [a.id for a in
                     request.nereid_user.party.addresses]:
                 abort(403)
             address = address_obj.browse(address_id)
@@ -89,7 +93,7 @@ class NereidShipping(ModelSQL, ModelView):
                 )
         return jsonify(
             result = [(g['id'], g['name'], g['amount']) for g in result]
-            )
+        )
 
     def _get_available_methods(self, **kwargs):
         """Return the list of tuple of available shipment methods
@@ -108,7 +112,8 @@ class NereidShipping(ModelSQL, ModelView):
         """
         model_obj = self.pool.get('ir.model')
         shipping_method_models = model_obj.search(
-            [('model', 'ilike', 'nereid.shipping.%')])
+            [('model', 'ilike', 'nereid.shipping.%')]
+        )
 
         # Initialise a Queue and add it to kwargs, this is designed
         # this way so that in future this could be run simultaneously
@@ -126,7 +131,7 @@ class NereidShipping(ModelSQL, ModelView):
     def add_shipping_line(self, sale, shipment_method_id):
         '''
         Extract the shipping method and rate from the form
-        Then create a new line or overwrite and existing line in the sale order 
+        Then create a new line or overwrite and existing line in the sale order
         with the name of the method and price and is_shipping_line flag set
         '''
         sale_line_obj = self.pool.get('sale.line')
@@ -139,7 +144,7 @@ class NereidShipping(ModelSQL, ModelView):
             zip = address.zip,
             subdivision = address.subdivision.id,
             country = address.country.id,
-            )
+        )
 
         for method in available_methods:
             if method['id'] == shipment_method_id:
@@ -153,11 +158,11 @@ class NereidShipping(ModelSQL, ModelView):
                     'unit_price': Decimal(str(method['amount'])),
                     'quantity': 1,
                     'is_shipping_line': True,
-                    }
+                }
                 existing_shipping_lines = sale_line_obj.search([
                     ('sale', '=', sale.id),
                     ('is_shipping_line', '=', True)
-                    ])
+                ])
                 if existing_shipping_lines:
                     sale_line_obj.write(existing_shipping_lines, values)
                 else:
@@ -172,9 +177,10 @@ class NereidShipping(ModelSQL, ModelView):
 
     def get_rate(self, **kwargs):
         """Default method, this should be overwritten by each
-        method. 
+        method.
         """
         return []
+
 
 NereidShipping()
 
@@ -183,7 +189,7 @@ class DefaultCheckout(ModelSQL):
     "Default Checkout Functionality process payment addition"
 
     _name = 'nereid.checkout.default'
-    
+
     def __init__(self):
         super(DefaultCheckout, self).__init__()
 
@@ -196,6 +202,7 @@ class DefaultCheckout(ModelSQL):
         shipping_obj = self.pool.get("nereid.shipping")
         return shipping_obj.add_shipping_line(sale, form.shipment_method.data)
 
+
 DefaultCheckout()
 
 
@@ -204,10 +211,15 @@ class AvailableCountries(ModelSQL, ModelView):
     _description = __doc__
     _name = 'nereid.shipping-country.country'
 
-    country = fields.Many2One('country.country', 'Country',
-        ondelete='CASCADE', required=True)
-    shipping = fields.Many2One('nereid.shipping', 'Shipping',
-        ondelete='CASCADE', required=True)
+    country = fields.Many2One(
+        'country.country', 'Country',
+        ondelete='CASCADE', required=True
+    )
+    shipping = fields.Many2One(
+        'nereid.shipping', 'Shipping',
+        ondelete='CASCADE', required=True
+    )
+
 
 AvailableCountries()
 
@@ -218,18 +230,21 @@ class SaleLine(ModelSQL, ModelView):
 
     #: A flag field which indicates if the field is representive
     #: of a shipping line
-    is_shipping_line = fields.Boolean('Is Shipping Line?', readonly = True)
+    is_shipping_line = fields.Boolean('Is Shipping Line?', readonly=True)
+
 
 SaleLine()
 
 
 class Website(ModelSQL, ModelView):
     "Website"
-
     _name = "nereid.website"
 
-    allowed_ship_methods = fields.Many2Many('nereid.website-nereid.shipping',
-            'website', 'shipping', 'Allowed Shipping Methods')
+    allowed_ship_methods = fields.Many2Many(
+        'nereid.website-nereid.shipping',
+        'website', 'shipping', 'Allowed Shipping Methods'
+    )
+
 
 Website()
 
@@ -239,9 +254,14 @@ class WebsiteShipping(ModelSQL, ModelView):
     _description = __doc__
     _name = 'nereid.website-nereid.shipping'
 
-    website = fields.Many2One('nereid.website', 'website',
-        ondelete='CASCADE', required = True)
-    shipping = fields.Many2One('nereid.shipping', 'shipping',
-        ondelete='CASCADE', required = True)
+    website = fields.Many2One(
+        'nereid.website', 'website',
+        ondelete='CASCADE', required=True
+    )
+    shipping = fields.Many2One(
+        'nereid.shipping', 'shipping',
+        ondelete='CASCADE', required=True
+    )
+
 
 WebsiteShipping()

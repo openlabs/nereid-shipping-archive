@@ -1,7 +1,11 @@
-# This file is part of Nereid.  The COPYRIGHT file at the top level of
-# this repository contains the full copyright notices and license terms.
+# -*- coding: utf-8 -*-
 """
-Nereid Shipping
+    methods
+
+    Nereid Shipping
+
+    :copyright: (c) 2011-2012 by Openlabs Technologies & Consulting (P) LTD
+    :license: BSD, see LICENSE for more details.
 """
 from nereid.globals import request, session
 from trytond.model import ModelSQL, ModelView, fields
@@ -36,10 +40,10 @@ class FlatRateShipping(ModelSQL, ModelView):
 
         rate = self.browse(rate_id[0])
         queue.put({
-            'id': rate.id, 
-            'name': rate.name, 
+            'id': rate.id,
+            'name': rate.name,
             'amount': float(rate.price)
-            })
+        })
         return
 
 FlatRateShipping()
@@ -75,7 +79,7 @@ class FreeShipping(ModelSQL, ModelView):
                 'id': rate.id,
                 'name': rate.name,
                 'amount': 0.00,
-                })
+            })
         return
 
 FreeShipping()
@@ -88,7 +92,7 @@ class ShippingTable(ModelSQL, ModelView):
     _description = __doc__
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
-    lines = fields.One2Many('shipping.method.table.line', 
+    lines = fields.One2Many('shipping.method.table.line',
             'table', 'Table Lines')
     factor = fields.Selection([
             ('total_price', 'Total Price'),
@@ -129,7 +133,7 @@ class ShippingTable(ModelSQL, ModelView):
         domain = [
             ('available_countries', '=', country),
             ('website', '=', request.nereid_website.id),
-            ]
+        ]
         if 'user' not in session:
             domain.append(('is_allowed_for_guest', '=', True))
 
@@ -147,7 +151,7 @@ class ShippingTable(ModelSQL, ModelView):
             ('country', '=', country),          # 1
             ('subdivision', '=', subdivision),  # 2
             ('zip', '=', zip),                  # 3
-            ]
+        ]
         # Try finding lines with max => min match
         # Read the doc string for the logic here
         for index in (None, -1, -2, -3):
@@ -158,7 +162,7 @@ class ShippingTable(ModelSQL, ModelView):
                 search_domain, order=[('factor','DESC')])
             if line_ids:
                 result = self.find_slab(line_ids, compared_value)
-                if result: 
+                if result:
                     queue.put(result)
                     break
 
@@ -176,9 +180,9 @@ class ShippingTable(ModelSQL, ModelView):
             if float(compared_value) >= float(line.factor):
                 return {
                     'id': line.table.id,
-                    'name': line.table.name, 
+                    'name': line.table.name,
                     'amount': float(line.price),
-                        }
+                }
 
 ShippingTable()
 
@@ -189,10 +193,11 @@ class ShippingTableLine(ModelSQL, ModelView):
     _description = __doc__
 
     country = fields.Many2One('country.country', 'Country')
-    subdivision = fields.Many2One('country.subdivision', 'Subdivision', 
-        domain=[('country', '=', Eval('country'))])
+    subdivision = fields.Many2One('country.subdivision', 'Subdivision',
+        domain=[('country', '=', Eval('country'))]
+    )
     zip = fields.Char('ZIP')
-    factor = fields.Float('Factor', required=True, 
+    factor = fields.Float('Factor', required=True,
             help="Value (inclusive) and above")
     price = fields.Numeric('Price', required=True)
     table = fields.Many2One('nereid.shipping.method.table', 'Shipping Table')

@@ -3,7 +3,7 @@
 
 {
     'name': 'Nereid - Shipping',
-    'version': '2.0.0.2',
+    'version': '2.0.0.3',
     'description': '''API to facilitate multiple shipping methods to 
         integrate with Nereid''',
     'author': 'Openlabs Technologies & Consulting (P) LTD',
