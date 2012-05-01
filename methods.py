@@ -5,7 +5,7 @@
     Nereid Shipping
 
     :copyright: (c) 2011-2012 by Openlabs Technologies & Consulting (P) LTD
-    :license: BSD, see LICENSE for more details.
+    :license: GPLv3, see LICENSE for more details.
 """
 from nereid.globals import request, session
 from trytond.model import ModelSQL, ModelView, fields

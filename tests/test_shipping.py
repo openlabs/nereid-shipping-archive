@@ -5,7 +5,7 @@
     Test Shipping Methods
 
     :copyright: © 2011-2012 by Openlabs Technologies & Consulting (P) Limited
-    :license: BSD, see LICENSE for more details.
+    :license: GPLv3, see LICENSE for more details.
 """
 import json
 from urllib import urlencode
