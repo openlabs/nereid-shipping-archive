@@ -10,6 +10,7 @@
 from nereid.globals import request, session
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pyson import Eval
+from trytond.pool import Pool
 
 
 class FlatRateShipping(ModelSQL, ModelView):
@@ -60,7 +61,7 @@ class FreeShipping(ModelSQL, ModelView):
 
     def get_rate(self, queue, country, **kwargs):
         "Free shipping if order value is above a certain limit"
-        cart_obj = self.pool.get('nereid.cart')
+        cart_obj = Pool().get('nereid.cart')
         domain = [
             ('available_countries', '=', country),
             ('website', '=', request.nereid_website.id),
@@ -127,8 +128,8 @@ class ShippingTable(ModelSQL, ModelView):
             3: ''[0:2] + [('subdivision', '=', False), ('zip', '=', False)]
             4: ''[0:1] + [('country', '=', False), ...]
         """
-        line_obj = self.pool.get('shipping.method.table.line')
-        cart_obj = self.pool.get('nereid.cart')
+        line_obj = Pool().get('shipping.method.table.line')
+        cart_obj = Pool().get('nereid.cart')
 
         domain = [
             ('available_countries', '=', country),
@@ -174,7 +175,7 @@ class ShippingTable(ModelSQL, ModelView):
         The lines are assumed to be sorted on the basis of decreasing
         factor
         """
-        line_obj = self.pool.get('shipping.method.table.line')
+        line_obj = Pool().get('shipping.method.table.line')
 
         for line in line_obj.browse(lines):
             if float(compared_value) >= float(line.factor):

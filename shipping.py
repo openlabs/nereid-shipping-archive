@@ -12,6 +12,7 @@ from nereid import abort
 from nereid.helpers import jsonify
 from nereid.globals import request, session, current_app
 from trytond.model import ModelView, ModelSQL, fields
+from trytond.pool import Pool
 
 
 class NereidShipping(ModelSQL, ModelView):
@@ -61,7 +62,7 @@ class NereidShipping(ModelSQL, ModelView):
         method of each decide if they want to expand into CODE or NAME
 
         """
-        address_obj = self.pool.get('party.address')
+        address_obj = Pool().get('party.address')
 
         if 'address' in request.args:
             if request.is_guest_user:
@@ -110,7 +111,7 @@ class NereidShipping(ModelSQL, ModelView):
                 'amount': <estimated amount>
             }
         """
-        model_obj = self.pool.get('ir.model')
+        model_obj = Pool().get('ir.model')
         shipping_method_models = model_obj.search(
             [('model', 'ilike', 'nereid.shipping.%')]
         )
@@ -123,7 +124,7 @@ class NereidShipping(ModelSQL, ModelView):
         kwargs['queue'] = queue
 
         for model in model_obj.browse(shipping_method_models):
-            method_obj = self.pool.get(model.model)
+            method_obj = Pool().get(model.model)
             getattr(method_obj, 'get_rate')(**kwargs)
 
         return [record for record in queue.queue]
@@ -134,7 +135,7 @@ class NereidShipping(ModelSQL, ModelView):
         Then create a new line or overwrite and existing line in the sale order
         with the name of the method and price and is_shipping_line flag set
         '''
-        sale_line_obj = self.pool.get('sale.line')
+        sale_line_obj = Pool().get('sale.line')
 
         address = sale.shipment_address
         available_methods = self._get_available_methods(
@@ -199,7 +200,7 @@ class DefaultCheckout(ModelSQL):
         :param sale: Browse Record of Sale Order
         :param form: Instance of validated form
         """
-        shipping_obj = self.pool.get("nereid.shipping")
+        shipping_obj = Pool().get("nereid.shipping")
         return shipping_obj.add_shipping_line(sale, form.shipment_method.data)
 
 

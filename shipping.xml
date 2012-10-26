@@ -9,8 +9,12 @@
 
       <menuitem name="Shipping Methods"
           sequence="50" id="menu_nereid_shipping"
-          parent="nereid.menu_nereid" 
-          groups="nereid.group_nereid_admin" />
+          parent="nereid.menu_nereid"  />
+
+      <record model="ir.ui.menu-res.group" id="menu_shipping_group_nereid_admin">
+          <field name="menu" ref="menu_nereid_shipping"/>
+          <field name="group" ref="nereid.group_nereid_admin"/>
+      </record>
 
       <!-- nereid.shipping.method.flat -->
 

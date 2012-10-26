@@ -19,6 +19,7 @@ register_classes()
 
 from nereid.testing import testing_proxy, TestCase
 from trytond.transaction import Transaction
+from trytond.pool import Pool
 
 
 class TestShipping(TestCase):
@@ -30,12 +31,12 @@ class TestShipping(TestCase):
 
         testing_proxy.install_module('nereid_shipping')
 
-        uom_obj = testing_proxy.pool.get('product.uom')
-        journal_obj = testing_proxy.pool.get('account.journal')
-        country_obj = testing_proxy.pool.get('country.country')
-        currency_obj = testing_proxy.pool.get('currency.currency')
-
         with Transaction().start(testing_proxy.db_name, 1, None) as txn:
+            uom_obj = Pool().get('product.uom')
+            journal_obj = Pool().get('account.journal')
+            country_obj = Pool().get('country.country')
+            currency_obj = Pool().get('currency.currency')
+            location_obj = Pool().get('stock.location')
             # Create company
             cls.company = testing_proxy.create_company('Test Company')
             testing_proxy.set_company_for_user(1, cls.company)
@@ -58,13 +59,15 @@ class TestShipping(TestCase):
             cls.available_currencies = currency_obj.search(
                 [('code', '=', 'USD')]
             )
+            location, = location_obj.search([
+                ('type', '=', 'storage')
+            ], limit=1)
             cls.site = testing_proxy.create_site(
                 'localhost',
-                category_template = category_template,
-                product_template = product_template,
                 countries = [('set', cls.available_countries)],
                 currencies = [('set', cls.available_currencies)],
-                application_user = 1, guest_user=cls.guest_user
+                application_user = 1, guest_user=cls.guest_user,
+                stock_location = location,
             )
 
             testing_proxy.create_template('home.jinja', ' Home ', cls.site)
@@ -89,7 +92,7 @@ class TestShipping(TestCase):
             stock_journal = journal_obj.search([('code', '=', 'STO')])[0]
             cls.product = testing_proxy.create_product(
                 'product 1', category,
-                type = 'stockable',
+                type = 'goods',
                 # purchasable = True,
                 salable = True,
                 list_price = Decimal('10'),
@@ -564,7 +567,7 @@ class TestShipping(TestCase):
 
         with Transaction().start(testing_proxy.db_name,
                 testing_proxy.user, testing_proxy.context) as txn:
-            shipping_obj = testing_proxy.pool.get('nereid.shipping')
+            shipping_obj = Pool().get('nereid.shipping')
             website_id = self.website_obj.search([])[0]
             website = self.website_obj.browse(website_id)
             country = website.countries[0]
@@ -585,9 +588,8 @@ class TestShipping(TestCase):
                 ('name', '=', 'account_revenue')
             ])
             self.ir_property_obj.create({
-                'name': 'account_revenue',
                 'field': field_id,
-                'res': False,
+                'res': '',
                 'value': 'account.account,%d' % self.account_revenue
             })
 
@@ -628,8 +630,6 @@ class TestShipping(TestCase):
                 self.assertEqual(sale.tax_amount, Decimal('0'))
                 self.assertEqual(len(sale.lines), 2)
                 self.assertEqual(sale.state, 'confirmed')
-                self.assertEqual(len(sale.invoices), 1)
-                self.assertEqual(len(sale.shipments), 1)
 
 
 def suite():
