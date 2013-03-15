@@ -195,7 +195,8 @@ class ShippingTableLine(ModelSQL, ModelView):
 
     country = fields.Many2One('country.country', 'Country')
     subdivision = fields.Many2One('country.subdivision', 'Subdivision',
-        domain=[('country', '=', Eval('country'))]
+        domain=[('country', '=', Eval('country'))],
+        depends=['country']
     )
     zip = fields.Char('ZIP')
     factor = fields.Float('Factor', required=True,
