@@ -4,7 +4,7 @@
 
     Nereid Shipping
 
-    :copyright: (c) 2011-2012 by Openlabs Technologies & Consulting (P) LTD
+    :copyright: (c) 2011-2013 by Openlabs Technologies & Consulting (P) LTD
     :license: GPLv3, see LICENSE for more details.
 """
 from nereid.globals import request, session
@@ -31,7 +31,7 @@ class FlatRateShipping(ModelSQL, ModelView):
         domain = [
             ('available_countries', '=', country),
             ('website', '=', request.nereid_website.id),
-            ]
+        ]
         if request.is_guest_user:
             domain.append(('is_allowed_for_guest', '=', True))
 
@@ -65,7 +65,7 @@ class FreeShipping(ModelSQL, ModelView):
         domain = [
             ('available_countries', '=', country),
             ('website', '=', request.nereid_website.id),
-            ]
+        ]
         if 'user' not in session:
             domain.append(('is_allowed_for_guest', '=', True))
 
@@ -93,13 +93,13 @@ class ShippingTable(ModelSQL, ModelView):
     _description = __doc__
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
-    lines = fields.One2Many('shipping.method.table.line',
-            'table', 'Table Lines')
+    lines = fields.One2Many(
+        'shipping.method.table.line', 'table', 'Table Lines')
     factor = fields.Selection([
-            ('total_price', 'Total Price'),
-            #TODO: ('total_weight', 'Total Weight'),
-            #TODO: ('total_quantity', 'Total Quantity'),
-            ], 'Factor', required=True)
+        ('total_price', 'Total Price'),
+        #TODO: ('total_weight', 'Total Weight'),
+        #TODO: ('total_quantity', 'Total Quantity'),
+    ], 'Factor', required=True)
 
     def default_model(self):
         "Sets Self Name"
@@ -111,10 +111,10 @@ class ShippingTable(ModelSQL, ModelView):
 
         The filter logic might look a bit wierd, the loop basic is below
 
-           >>> p = [0, 1, 2, 3] 
+           >>> p = [0, 1, 2, 3]
            >>> for i in [None, -1, -2, -3]:
            ...     p[:i] + [-x for x in p[i:] if i]
-           ... 
+           ...
            [0,      1,      2,      3]
            [0,      1,      2,     -3]
            [0,      1,     -2,     -3]
@@ -158,9 +158,9 @@ class ShippingTable(ModelSQL, ModelView):
         for index in (None, -1, -2, -3):
             search_domain = domain[:index] + [
                 (l[0], '=', False) for l in domain[index:] if index
-                ]
+            ]
             line_ids = line_obj.search(
-                search_domain, order=[('factor','DESC')])
+                search_domain, order=[('factor', 'DESC')])
             if line_ids:
                 result = self.find_slab(line_ids, compared_value)
                 if result:
@@ -194,13 +194,15 @@ class ShippingTableLine(ModelSQL, ModelView):
     _description = __doc__
 
     country = fields.Many2One('country.country', 'Country')
-    subdivision = fields.Many2One('country.subdivision', 'Subdivision',
+    subdivision = fields.Many2One(
+        'country.subdivision', 'Subdivision',
         domain=[('country', '=', Eval('country'))],
         depends=['country']
     )
     zip = fields.Char('ZIP')
-    factor = fields.Float('Factor', required=True,
-            help="Value (inclusive) and above")
+    factor = fields.Float(
+        'Factor', required=True, help="Value (inclusive) and above"
+    )
     price = fields.Numeric('Price', required=True)
     table = fields.Many2One('nereid.shipping.method.table', 'Shipping Table')
 

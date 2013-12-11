@@ -13,28 +13,35 @@ minor_version = int(minor_version)
 requires = []
 for dep in info.get('depends', []):
     if not re.match(r'(nereid_cart|workflow|webdav)(\W|$)', dep):
-        requires.append('trytond_%s >= %s.%s, < %s.%s' %
-                (dep, major_version, minor_version, major_version,
-                    minor_version + 1))
-requires.append('trytond >= %s.%s, < %s.%s' %
-        (major_version, minor_version, major_version, minor_version + 1))
+        requires.append(
+            'trytond_%s >= %s.%s, < %s.%s' %
+            (
+                dep, major_version, minor_version, major_version,
+                minor_version + 1
+            )
+        )
+requires.append(
+    'trytond >= %s.%s, < %s.%s' %
+    (major_version, minor_version, major_version, minor_version + 1)
+)
 
-setup(name='trytond_nereid_shipping',
+setup(
+    name='trytond_nereid_shipping',
     version=info.get('version', '0.0.1'),
     description=info.get('description', ''),
     author=info.get('author', ''),
     author_email=info.get('email', ''),
     url=info.get('website', ''),
-    download_url="http://downloads.tryton.org/" + \
-            info.get('version', '0.0.1').rsplit('.', 1)[0] + '/',
+    download_url="http://downloads.tryton.org/" +
+    info.get('version', '0.0.1').rsplit('.', 1)[0] + '/',
     package_dir={'trytond.modules.nereid_shipping': '.'},
     packages=[
         'trytond.modules.nereid_shipping',
         'trytond.modules.nereid_shipping.tests',
     ],
     package_data={
-        'trytond.modules.nereid_shipping': info.get('xml', []) \
-                + info.get('translation', []),
+        'trytond.modules.nereid_shipping': info.get('xml', [])
+            + info.get('translation', []),
     },
     classifiers=[
         'Development Status :: 5 - Production/Stable',

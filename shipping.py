@@ -2,7 +2,7 @@
 """
     shipping
 
-    :copyright: (c) 2011-2012 by Openlabs Technologies & Consulting (P) LTD
+    :copyright: (c) 2011-2013 by Openlabs Technologies & Consulting (P) LTD
     :license: GPLv3, see LICENSE for more details.
 """
 from Queue import Queue
@@ -67,39 +67,40 @@ class NereidShipping(ModelSQL, ModelView):
         if 'address' in request.args:
             if request.is_guest_user:
                 abort(403)
-            # If not validated as user's address this could lead to 
+            # If not validated as user's address this could lead to
             # exploitation by ID
             address_id = request.args.get('address', type=int)
-            if address_id not in [a.id for a in
-                    request.nereid_user.party.addresses]:
+            if address_id not in [
+                a.id for a in request.nereid_user.party.addresses
+            ]:
                 abort(403)
             address = address_obj.browse(address_id)
             result = self._get_available_methods(
-                street = address.street,
-                streetbis = address.streetbis,
-                city = address.city,
-                zip = address.zip,
-                subdivision = address.subdivision.id,
-                country = address.country.id,
-                )
+                street=address.street,
+                streetbis=address.streetbis,
+                city=address.city,
+                zip=address.zip,
+                subdivision=address.subdivision.id,
+                country=address.country.id,
+            )
         else:
             # Each specified manually
             result = self._get_available_methods(
-                street = request.args.get('street'),
-                streetbis = request.args.get('streetbis'),
-                city = request.args.get('city'),
-                zip = request.args.get('zip'),
-                subdivision = int(request.args.get('subdivision')),
-                country = int(request.args.get('country')),
-                )
+                street=request.args.get('street'),
+                streetbis=request.args.get('streetbis'),
+                city=request.args.get('city'),
+                zip=request.args.get('zip'),
+                subdivision=int(request.args.get('subdivision')),
+                country=int(request.args.get('country')),
+            )
         return jsonify(
-            result = [(g['id'], g['name'], g['amount']) for g in result]
+            result=[(g['id'], g['name'], g['amount']) for g in result]
         )
 
     def _get_available_methods(self, **kwargs):
         """Return the list of tuple of available shipment methods
 
-        The method calls the get_rate method of each available shipping 
+        The method calls the get_rate method of each available shipping
         method with the keyword arguments in kwargs and queue. The method can
         use whatever data it wants to use from the kwargs and add a shipping
         option to the queue (using queue.put). The API expects the option
@@ -139,12 +140,12 @@ class NereidShipping(ModelSQL, ModelView):
 
         address = sale.shipment_address
         available_methods = self._get_available_methods(
-            street = address.street,
-            streetbis = address.streetbis,
-            city = address.city,
-            zip = address.zip,
-            subdivision = address.subdivision.id,
-            country = address.country.id,
+            street=address.street,
+            streetbis=address.streetbis,
+            city=address.city,
+            zip=address.zip,
+            subdivision=address.subdivision.id,
+            country=address.country.id,
         )
 
         for method in available_methods:
@@ -170,9 +171,11 @@ class NereidShipping(ModelSQL, ModelView):
                     sale_line_obj.create(values)
                 break
         else:
-            current_app.logger.debug('Selected shipment method (%s) not in ' +
-                'shipping_quote (%s) in session' % \
-                (shipment_method_id, session['shipping_quote']))
+            current_app.logger.debug(
+                'Selected shipment method (%s) not in ' +
+                'shipping_quote (%s) in session' %
+                (shipment_method_id, session['shipping_quote'])
+            )
             abort(403)
         return True
 

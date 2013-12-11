@@ -1,5 +1,5 @@
 #This file is part of Tryton. The COPYRIGHT file at the top level of
-#this repository contains the full copyright notices and license terms.	
+#this repository contains the full copyright notices and license terms.
 from nereid.contrib.testing import xmlrunner
 from test_shipping import suite
 

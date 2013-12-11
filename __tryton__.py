@@ -1,4 +1,4 @@
-# This file is part of Tryton and Nereid. 
+# This file is part of Tryton and Nereid.
 # see COPYRIGHT and LICENSE at the root of this repository
 
 {
@@ -8,11 +8,11 @@
         integrate with Nereid''',
     'author': 'Openlabs Technologies & Consulting (P) LTD',
     'website': 'http://www.openlabs.co.in',
-    'email'  : 'info@openlabs.co.in',
+    'email': 'info@openlabs.co.in',
     'depends': [
         'nereid_cart_b2c',
         'nereid_checkout',
-	],
+    ],
     'xml': [
         'shipping.xml',
         'urls.xml',
