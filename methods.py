@@ -10,87 +10,85 @@
 from nereid.globals import request, session
 from trytond.model import ModelSQL, ModelView, fields
 from trytond.pyson import Eval
-from trytond.pool import Pool
+from trytond.pool import Pool, PoolMeta
+
+__all__ = [
+    'FlatRateShipping', 'FreeShipping', 'ShippingTable', 'ShippingTableLine',
+]
+__poolmeta__ = PoolMeta
 
 
 class FlatRateShipping(ModelSQL, ModelView):
     "Nereid Flat Rate Shipping"
-    _name = "nereid.shipping.method.flat"
-    _inherits = {'nereid.shipping': 'shipping'}
-    _description = __doc__
+    __name__ = "nereid.shipping.method.flat"
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
     price = fields.Numeric('Price', required=True)
 
-    def default_model(self):
+    @classmethod
+    def default_model(cls):
         "Sets self name"
-        return self._name
+        return cls.__name__
 
-    def get_rate(self, queue, country, **kwargs):
+    @classmethod
+    def get_rate(cls, queue, country, **kwargs):
         "Get the rate "
         domain = [
-            ('available_countries', '=', country),
-            ('website', '=', request.nereid_website.id),
+            ('shipping.available_countries', '=', country),
+            ('shipping.website', '=', request.nereid_website.id),
         ]
         if request.is_guest_user:
-            domain.append(('is_allowed_for_guest', '=', True))
+            domain.append(('shipping.is_allowed_for_guest', '=', True))
 
-        rate_id = self.search(domain)
-        if not rate_id:
+        rates = cls.search(domain)
+        if not rates:
             return None
 
-        rate = self.browse(rate_id[0])
+        rate = rates[0]
         queue.put({
             'id': rate.id,
-            'name': rate.name,
+            'name': rate.shipping.name,
             'amount': float(rate.price)
         })
         return
 
-FlatRateShipping()
-
 
 class FreeShipping(ModelSQL, ModelView):
     "Nereid Free Shipping"
-    _name = "nereid.shipping.method.free"
-    _inherits = {"nereid.shipping": "shipping"}
-    _description = __doc__
+    __name__ = "nereid.shipping.method.free"
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
     minimum_order_value = fields.Numeric('Minimum Order Value')
 
-    def get_rate(self, queue, country, **kwargs):
+    @classmethod
+    def get_rate(cls, queue, country, **kwargs):
         "Free shipping if order value is above a certain limit"
-        cart_obj = Pool().get('nereid.cart')
+        Cart = Pool().get('nereid.cart')
         domain = [
-            ('available_countries', '=', country),
-            ('website', '=', request.nereid_website.id),
+            ('shipping.available_countries', '=', country),
+            ('shipping.website', '=', request.nereid_website.id),
         ]
         if 'user' not in session:
-            domain.append(('is_allowed_for_guest', '=', True))
+            domain.append(('shipping.is_allowed_for_guest', '=', True))
 
-        rate_id = self.search(domain)
-        if not rate_id:
+        rates = cls.search(domain)
+        if not rates:
             return
 
-        rate = self.browse(rate_id[0])
-        cart = cart_obj.open_cart()
+        rate = rates[0]
+        cart = Cart.open_cart()
         if cart.sale.total_amount >= rate.minimum_order_value:
             queue.put({
                 'id': rate.id,
-                'name': rate.name,
+                'name': rate.shipping.name,
                 'amount': 0.00,
             })
         return
 
-FreeShipping()
-
 
 class ShippingTable(ModelSQL, ModelView):
     "Nereid Shipping Table"
-    _name = 'nereid.shipping.method.table'
-    _inherits = {'nereid.shipping': 'shipping'}
-    _description = __doc__
+    __name__ = 'nereid.shipping.method.table'
 
     shipping = fields.Many2One('nereid.shipping', 'Shipping', required=True)
     lines = fields.One2Many(
@@ -101,11 +99,13 @@ class ShippingTable(ModelSQL, ModelView):
         #TODO: ('total_quantity', 'Total Quantity'),
     ], 'Factor', required=True)
 
-    def default_model(self):
+    @classmethod
+    def default_model(cls):
         "Sets Self Name"
-        return self._name
+        return cls.__name__
 
-    def get_rate(self, queue, zip, subdivision, country, **kwargs):
+    @classmethod
+    def get_rate(cls, queue, zip, subdivision, country, **kwargs):
         """Calculate the price of shipment based on factor, shipment address
             and factor defined in table lines.
 
@@ -128,27 +128,27 @@ class ShippingTable(ModelSQL, ModelView):
             3: ''[0:2] + [('subdivision', '=', False), ('zip', '=', False)]
             4: ''[0:1] + [('country', '=', False), ...]
         """
-        line_obj = Pool().get('shipping.method.table.line')
-        cart_obj = Pool().get('nereid.cart')
+        Line = Pool().get('shipping.method.table.line')
+        Cart = Pool().get('nereid.cart')
 
         domain = [
-            ('available_countries', '=', country),
-            ('website', '=', request.nereid_website.id),
+            ('shipping.available_countries', '=', country),
+            ('shipping.website', '=', request.nereid_website.id),
         ]
         if 'user' not in session:
-            domain.append(('is_allowed_for_guest', '=', True))
+            domain.append(('shipping.is_allowed_for_guest', '=', True))
 
-        table_ids = self.search(domain)
-        if not table_ids:
+        tables = cls.search(domain)
+        if not tables:
             return
 
-        cart = cart_obj.open_cart()
+        cart = Cart.open_cart()
         compared_value = cart.sale.total_amount
 
         # compared value under an IF
 
         domain = [
-            ('table', '=', table_ids[0]),       # 0
+            ('table', '=', tables[0].id),       # 0
             ('country', '=', country),          # 1
             ('subdivision', '=', subdivision),  # 2
             ('zip', '=', zip),                  # 3
@@ -157,17 +157,18 @@ class ShippingTable(ModelSQL, ModelView):
         # Read the doc string for the logic here
         for index in (None, -1, -2, -3):
             search_domain = domain[:index] + [
-                (l[0], '=', False) for l in domain[index:] if index
+                (l[0], '=', None) for l in domain[index:] if index
             ]
-            line_ids = line_obj.search(
+            lines = Line.search(
                 search_domain, order=[('factor', 'DESC')])
-            if line_ids:
-                result = self.find_slab(line_ids, compared_value)
+            if lines:
+                result = cls.find_slab(lines, compared_value)
                 if result:
                     queue.put(result)
                     break
 
-    def find_slab(self, lines, compared_value):
+    @classmethod
+    def find_slab(cls, lines, compared_value):
         """
         Returns the correct amount considering the slab provided
         the other values were matched to certain lines.
@@ -175,23 +176,18 @@ class ShippingTable(ModelSQL, ModelView):
         The lines are assumed to be sorted on the basis of decreasing
         factor
         """
-        line_obj = Pool().get('shipping.method.table.line')
-
-        for line in line_obj.browse(lines):
+        for line in lines:
             if float(compared_value) >= float(line.factor):
                 return {
                     'id': line.table.id,
-                    'name': line.table.name,
+                    'name': line.table.shipping.name,
                     'amount': float(line.price),
                 }
-
-ShippingTable()
 
 
 class ShippingTableLine(ModelSQL, ModelView):
     "Shipping Table Line"
-    _name = 'shipping.method.table.line'
-    _description = __doc__
+    __name__ = 'shipping.method.table.line'
 
     country = fields.Many2One('country.country', 'Country')
     subdivision = fields.Many2One(
@@ -205,6 +201,3 @@ class ShippingTableLine(ModelSQL, ModelView):
     )
     price = fields.Numeric('Price', required=True)
     table = fields.Many2One('nereid.shipping.method.table', 'Shipping Table')
-
-
-ShippingTableLine()

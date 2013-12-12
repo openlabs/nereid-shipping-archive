@@ -8,17 +8,21 @@
 from Queue import Queue
 from decimal import Decimal
 
-from nereid import abort
-from nereid.helpers import jsonify
+from nereid import abort, jsonify
 from nereid.globals import request, session, current_app
 from trytond.model import ModelView, ModelSQL, fields
-from trytond.pool import Pool
+from trytond.pool import Pool, PoolMeta
+
+__all__ = [
+    'NereidShipping', 'DefaultCheckout', 'WebsiteShipping', 'Website',
+    'AvailableCountries', 'SaleLine',
+]
+__poolmeta__ = PoolMeta
 
 
 class NereidShipping(ModelSQL, ModelView):
     "Nereid Shipping"
-    _name = "nereid.shipping"
-    _description = __doc__
+    __name__ = "nereid.shipping"
 
     name = fields.Char('Name', required=True, translate=True)
     active = fields.Boolean('Active')
@@ -29,15 +33,18 @@ class NereidShipping(ModelSQL, ModelView):
     )
     website = fields.Many2One('nereid.website', 'Website')
 
-    def default_is_allowed_for_guest(self):
+    @staticmethod
+    def default_is_allowed_for_guest():
         "Returns True"
         return True
 
-    def default_active(self):
+    @staticmethod
+    def default_active():
         "Returns True"
         return True
 
-    def get_available_methods(self):
+    @classmethod
+    def get_available_methods(cls):
         """Return the JSONified list of shipment gateways available
 
         This is a XHR only method
@@ -62,7 +69,7 @@ class NereidShipping(ModelSQL, ModelView):
         method of each decide if they want to expand into CODE or NAME
 
         """
-        address_obj = Pool().get('party.address')
+        Address = Pool().get('party.address')
 
         if 'address' in request.args:
             if request.is_guest_user:
@@ -74,8 +81,8 @@ class NereidShipping(ModelSQL, ModelView):
                 a.id for a in request.nereid_user.party.addresses
             ]:
                 abort(403)
-            address = address_obj.browse(address_id)
-            result = self._get_available_methods(
+            address = Address(address_id)
+            result = cls._get_available_methods(
                 street=address.street,
                 streetbis=address.streetbis,
                 city=address.city,
@@ -85,7 +92,7 @@ class NereidShipping(ModelSQL, ModelView):
             )
         else:
             # Each specified manually
-            result = self._get_available_methods(
+            result = cls._get_available_methods(
                 street=request.args.get('street'),
                 streetbis=request.args.get('streetbis'),
                 city=request.args.get('city'),
@@ -97,7 +104,8 @@ class NereidShipping(ModelSQL, ModelView):
             result=[(g['id'], g['name'], g['amount']) for g in result]
         )
 
-    def _get_available_methods(self, **kwargs):
+    @classmethod
+    def _get_available_methods(cls, **kwargs):
         """Return the list of tuple of available shipment methods
 
         The method calls the get_rate method of each available shipping
@@ -112,8 +120,8 @@ class NereidShipping(ModelSQL, ModelView):
                 'amount': <estimated amount>
             }
         """
-        model_obj = Pool().get('ir.model')
-        shipping_method_models = model_obj.search(
+        Model = Pool().get('ir.model')
+        shipping_method_models = Model.search(
             [('model', 'ilike', 'nereid.shipping.%')]
         )
 
@@ -124,22 +132,23 @@ class NereidShipping(ModelSQL, ModelView):
         queue = Queue()
         kwargs['queue'] = queue
 
-        for model in model_obj.browse(shipping_method_models):
-            method_obj = Pool().get(model.model)
-            getattr(method_obj, 'get_rate')(**kwargs)
+        for model in shipping_method_models:
+            Method = Pool().get(model.model)
+            getattr(Method, 'get_rate')(**kwargs)
 
         return [record for record in queue.queue]
 
-    def add_shipping_line(self, sale, shipment_method_id):
+    @classmethod
+    def add_shipping_line(cls, sale, shipment_method_id):
         '''
         Extract the shipping method and rate from the form
         Then create a new line or overwrite and existing line in the sale order
         with the name of the method and price and is_shipping_line flag set
         '''
-        sale_line_obj = Pool().get('sale.line')
+        SaleLine = Pool().get('sale.line')
 
         address = sale.shipment_address
-        available_methods = self._get_available_methods(
+        available_methods = cls._get_available_methods(
             street=address.street,
             streetbis=address.streetbis,
             city=address.city,
@@ -161,14 +170,14 @@ class NereidShipping(ModelSQL, ModelView):
                     'quantity': 1,
                     'is_shipping_line': True,
                 }
-                existing_shipping_lines = sale_line_obj.search([
+                existing_shipping_lines = SaleLine.search([
                     ('sale', '=', sale.id),
                     ('is_shipping_line', '=', True)
                 ])
                 if existing_shipping_lines:
-                    sale_line_obj.write(existing_shipping_lines, values)
+                    SaleLine.write(existing_shipping_lines, values)
                 else:
-                    sale_line_obj.create(values)
+                    SaleLine.create([values])
                 break
         else:
             current_app.logger.debug(
@@ -179,41 +188,33 @@ class NereidShipping(ModelSQL, ModelView):
             abort(403)
         return True
 
-    def get_rate(self, **kwargs):
+    @classmethod
+    def get_rate(cls, **kwargs):
         """Default method, this should be overwritten by each
         method.
         """
         return []
 
 
-NereidShipping()
-
-
 class DefaultCheckout(ModelSQL):
     "Default Checkout Functionality process payment addition"
 
-    _name = 'nereid.checkout.default'
+    __name__ = 'nereid.checkout.default'
 
-    def __init__(self):
-        super(DefaultCheckout, self).__init__()
-
-    def _process_shipment(self, sale, form):
+    @classmethod
+    def _process_shipment(cls, sale, form):
         """Process the payment
 
         :param sale: Browse Record of Sale Order
         :param form: Instance of validated form
         """
-        shipping_obj = Pool().get("nereid.shipping")
-        return shipping_obj.add_shipping_line(sale, form.shipment_method.data)
-
-
-DefaultCheckout()
+        Shipping = Pool().get("nereid.shipping")
+        return Shipping.add_shipping_line(sale, form.shipment_method.data)
 
 
 class AvailableCountries(ModelSQL, ModelView):
     "Nereid Available Countries"
-    _description = __doc__
-    _name = 'nereid.shipping-country.country'
+    __name__ = 'nereid.shipping-country.country'
 
     country = fields.Many2One(
         'country.country', 'Country',
@@ -225,24 +226,18 @@ class AvailableCountries(ModelSQL, ModelView):
     )
 
 
-AvailableCountries()
-
-
 class SaleLine(ModelSQL, ModelView):
     "Add Is Shipping Line to Sale Line"
-    _name = 'sale.line'
+    __name__ = 'sale.line'
 
     #: A flag field which indicates if the field is representive
     #: of a shipping line
     is_shipping_line = fields.Boolean('Is Shipping Line?', readonly=True)
 
 
-SaleLine()
-
-
 class Website(ModelSQL, ModelView):
     "Website"
-    _name = "nereid.website"
+    __name__ = "nereid.website"
 
     allowed_ship_methods = fields.Many2Many(
         'nereid.website-nereid.shipping',
@@ -250,13 +245,9 @@ class Website(ModelSQL, ModelView):
     )
 
 
-Website()
-
-
 class WebsiteShipping(ModelSQL, ModelView):
     "Website Shipping Rel"
-    _description = __doc__
-    _name = 'nereid.website-nereid.shipping'
+    __name__ = 'nereid.website-nereid.shipping'
 
     website = fields.Many2One(
         'nereid.website', 'website',
@@ -266,6 +257,3 @@ class WebsiteShipping(ModelSQL, ModelView):
         'nereid.shipping', 'shipping',
         ondelete='CASCADE', required=True
     )
-
-
-WebsiteShipping()
