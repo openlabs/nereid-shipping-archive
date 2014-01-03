@@ -486,7 +486,7 @@ class TestShipping(NereidTestCase):
             app = self.get_app()
 
             shipping_flat = self._create_shipping('Flat Rate')
-            shipping_flat.is_allowed_for_guest=False
+            shipping_flat.is_allowed_for_guest = False
             shipping_flat.save()
 
             shipping_free = self._create_shipping('Free Rate')
