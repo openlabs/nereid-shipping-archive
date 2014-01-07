@@ -21,8 +21,8 @@ def register():
         Register classes
     '''
     Pool.register(
-        AvailableCountries,
         NereidShipping,
+        AvailableCountries,
         DefaultCheckout,
         WebsiteShipping,
         Website,
